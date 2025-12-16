@@ -40,27 +40,14 @@ const PIECES = {
     pento_i_v: { shape: [[1], [1], [1], [1], [1]], weight: 6 },
     pento_plus: { shape: [[0, 1, 0], [1, 1, 1], [0, 1, 0]], weight: 6 },
     pento_u: { shape: [[1, 0, 1], [1, 1, 1]], weight: 6 },
-    pento_l1: { shape: [[1, 0, 0, 0], [1, 1, 1, 1]], weight: 6 },
-    pento_l2: { shape: [[0, 0, 0, 1], [1, 1, 1, 1]], weight: 6 },
 
     // Large pieces (rare)
     big_l: { shape: [[1, 0, 0], [1, 0, 0], [1, 1, 1]], weight: 3 },
     big_square: { shape: [[1, 1, 1], [1, 1, 1], [1, 1, 1]], weight: 2 },
 };
 
-// Piece colors
-const PIECE_COLORS = [
-    '#FF6B6B', // Red
-    '#4ECDC4', // Teal
-    '#45B7D1', // Blue
-    '#96CEB4', // Green
-    '#FFEAA7', // Yellow
-    '#DDA0DD', // Plum
-    '#98D8C8', // Mint
-    '#F7DC6F', // Gold
-    '#BB8FCE', // Purple
-    '#85C1E9', // Sky
-];
+// Block color classes
+const BLOCK_COLORS = ['block-1', 'block-2', 'block-3', 'block-4', 'block-5', 'block-6', 'block-7'];
 
 // ==================== GAME STATE ====================
 class BlockBloom {
@@ -69,46 +56,56 @@ class BlockBloom {
         this.grid = [];
         this.pieces = [null, null, null];
         this.score = 0;
-        this.highScore = 0;
+        this.bestScore = 0;
         this.combo = 0;
         this.comboMultiplier = 1.0;
+        this.maxCombo = 0;
         this.flowMeter = 0;
         this.flowDecayTimer = null;
-        this.gameMode = 'classic'; // classic, daily, zen
+        this.gameMode = 'classic';
         this.isGameOver = false;
+        this.gameStarted = false;
         this.moveHistory = [];
         this.maxUndo = 3;
         this.undosRemaining = 3;
         this.swapsRemaining = 1;
-        this.bombsRemaining = 1;
-        this.tutorialStep = 0;
-        this.isTutorial = false;
-        this.theme = 'default';
-        this.soundEnabled = true;
-        this.hapticEnabled = true;
+        this.bombsRemaining = 0;
+        this.isBombMode = false;
+        this.linesCleared = 0;
+        this.piecesPlaced = 0;
+
+        // Drag state
+        this.selectedPieceIndex = null;
         this.draggedPiece = null;
         this.draggedPieceIndex = null;
         this.ghostPosition = null;
+        this.floatingElement = null;
 
-        // Stats
-        this.stats = this.loadStats();
+        // Settings
+        this.soundEnabled = true;
+        this.hapticEnabled = true;
+        this.colorblindMode = false;
+        this.zenTheme = false;
+
+        // Tutorial
+        this.tutorialStep = 0;
+        this.tutorialDone = localStorage.getItem('blockbloom_tutorial_done') === 'true';
 
         this.init();
     }
 
     init() {
         this.loadSettings();
-        this.loadHighScore();
-        this.setupEventListeners();
+        this.loadBestScore();
         this.createGrid();
-        this.generatePieces();
-        this.render();
-        this.startFlowDecay();
+        this.setupEventListeners();
 
-        // Check for saved game
-        const savedGame = localStorage.getItem('blockbloom_save');
-        if (savedGame && this.gameMode === 'classic') {
-            this.showResumeDialog();
+        // Show menu on start
+        this.showModal('menu-modal');
+
+        // Show tutorial for first time users
+        if (!this.tutorialDone) {
+            setTimeout(() => this.startTutorial(), 500);
         }
     }
 
@@ -118,13 +115,15 @@ class BlockBloom {
         for (let y = 0; y < this.gridSize; y++) {
             this.grid[y] = [];
             for (let x = 0; x < this.gridSize; x++) {
-                this.grid[y][x] = { filled: false, color: null };
+                this.grid[y][x] = { filled: false, colorClass: null };
             }
         }
     }
 
     renderGrid() {
-        const board = document.getElementById('game-board');
+        const board = document.getElementById('board');
+        if (!board) return;
+
         board.innerHTML = '';
 
         for (let y = 0; y < this.gridSize; y++) {
@@ -135,24 +134,21 @@ class BlockBloom {
                 cell.dataset.y = y;
 
                 if (this.grid[y][x].filled) {
-                    cell.classList.add('filled');
-                    cell.style.backgroundColor = this.grid[y][x].color;
+                    cell.classList.add('filled', this.grid[y][x].colorClass);
                 }
 
                 // Ghost preview
                 if (this.ghostPosition && this.draggedPiece) {
                     const shape = this.draggedPiece.shape;
+                    const canPlace = this.canPlacePiece(this.draggedPiece, this.ghostPosition.x, this.ghostPosition.y);
+
                     for (let py = 0; py < shape.length; py++) {
                         for (let px = 0; px < shape[py].length; px++) {
                             if (shape[py][px] === 1) {
                                 const gx = this.ghostPosition.x + px;
                                 const gy = this.ghostPosition.y + py;
-                                if (gx === x && gy === y) {
-                                    const canPlace = this.canPlacePiece(this.draggedPiece, this.ghostPosition.x, this.ghostPosition.y);
-                                    cell.classList.add('ghost');
-                                    if (!canPlace) {
-                                        cell.classList.add('invalid');
-                                    }
+                                if (gx === x && gy === y && !this.grid[y][x].filled) {
+                                    cell.classList.add(canPlace ? 'preview-valid' : 'preview-invalid');
                                 }
                             }
                         }
@@ -172,7 +168,6 @@ class BlockBloom {
 
         for (let i = 0; i < 3; i++) {
             if (this.pieces[i] === null) {
-                // Weighted random selection
                 let random = Math.random() * totalWeight;
                 let selectedKey = pieceKeys[0];
 
@@ -185,18 +180,19 @@ class BlockBloom {
                 }
 
                 const pieceData = PIECES[selectedKey];
-                const color = PIECE_COLORS[Math.floor(Math.random() * PIECE_COLORS.length)];
+                const colorClass = BLOCK_COLORS[Math.floor(Math.random() * BLOCK_COLORS.length)];
 
                 this.pieces[i] = {
                     key: selectedKey,
                     shape: pieceData.shape,
-                    color: color,
+                    colorClass: colorClass,
                     cellCount: this.countCells(pieceData.shape)
                 };
             }
         }
 
         this.renderPieces();
+        this.checkPiecesPlaceable();
     }
 
     countCells(shape) {
@@ -210,37 +206,65 @@ class BlockBloom {
     }
 
     renderPieces() {
+        const tray = document.getElementById('pieces-tray');
+        if (!tray) return;
+
+        tray.innerHTML = '';
+
         for (let i = 0; i < 3; i++) {
-            const tray = document.getElementById(`piece-${i}`);
-            tray.innerHTML = '';
+            const slot = document.createElement('div');
+            slot.className = 'piece-slot';
+            slot.dataset.index = i;
 
             const piece = this.pieces[i];
             if (!piece) {
-                tray.classList.add('empty');
+                slot.classList.add('used');
+                tray.appendChild(slot);
                 continue;
             }
 
-            tray.classList.remove('empty');
-
-            const pieceEl = document.createElement('div');
-            pieceEl.className = 'piece-preview';
-            pieceEl.style.gridTemplateColumns = `repeat(${piece.shape[0].length}, 1fr)`;
-            pieceEl.style.gridTemplateRows = `repeat(${piece.shape.length}, 1fr)`;
+            const pieceGrid = document.createElement('div');
+            pieceGrid.className = 'piece-grid';
+            pieceGrid.style.gridTemplateColumns = `repeat(${piece.shape[0].length}, 1fr)`;
 
             for (let y = 0; y < piece.shape.length; y++) {
                 for (let x = 0; x < piece.shape[y].length; x++) {
                     const cell = document.createElement('div');
                     cell.className = 'piece-cell';
                     if (piece.shape[y][x] === 1) {
-                        cell.classList.add('filled');
-                        cell.style.backgroundColor = piece.color;
+                        cell.classList.add('filled', piece.colorClass);
                     }
-                    pieceEl.appendChild(cell);
+                    pieceGrid.appendChild(cell);
                 }
             }
 
-            tray.appendChild(pieceEl);
+            slot.appendChild(pieceGrid);
+            tray.appendChild(slot);
+
+            // Add drag listeners
+            this.addPieceDragListeners(slot, i);
         }
+    }
+
+    checkPiecesPlaceable() {
+        const slots = document.querySelectorAll('.piece-slot');
+
+        this.pieces.forEach((piece, index) => {
+            if (!piece) return;
+
+            let canPlace = false;
+            for (let y = 0; y < this.gridSize && !canPlace; y++) {
+                for (let x = 0; x < this.gridSize && !canPlace; x++) {
+                    if (this.canPlacePiece(piece, x, y)) {
+                        canPlace = true;
+                    }
+                }
+            }
+
+            if (!canPlace && slots[index]) {
+                slots[index].classList.add('cannot-place');
+            }
+        });
     }
 
     // ==================== PLACEMENT LOGIC ====================
@@ -254,12 +278,10 @@ class BlockBloom {
                     const gridX = startX + x;
                     const gridY = startY + y;
 
-                    // Out of bounds
                     if (gridX < 0 || gridX >= this.gridSize || gridY < 0 || gridY >= this.gridSize) {
                         return false;
                     }
 
-                    // Cell already filled
                     if (this.grid[gridY][gridX].filled) {
                         return false;
                     }
@@ -285,25 +307,28 @@ class BlockBloom {
                 if (shape[y][x] === 1) {
                     const gridX = startX + x;
                     const gridY = startY + y;
-                    this.grid[gridY][gridX] = { filled: true, color: piece.color };
+                    this.grid[gridY][gridX] = { filled: true, colorClass: piece.colorClass };
                 }
             }
         }
 
         // Add placement score
         this.addScore(piece.cellCount);
+        this.piecesPlaced++;
 
         // Remove piece from tray
         this.pieces[pieceIndex] = null;
 
         // Check and clear lines
-        const linesCleared = this.checkAndClearLines();
+        const cleared = this.checkAndClearLines();
 
         // Update combo
-        if (linesCleared > 0) {
+        if (cleared > 0) {
             this.combo++;
-            this.comboMultiplier = Math.min(3.0, 1.0 + (this.combo - 1) * 0.1);
-            this.addFlowMeter(linesCleared * 10);
+            this.comboMultiplier = Math.min(3.0, 1.0 + (this.combo - 1) * 0.2);
+            if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+            this.addFlowMeter(cleared * 15);
+            this.showComboPopup(cleared);
         } else {
             this.combo = 0;
             this.comboMultiplier = 1.0;
@@ -312,11 +337,13 @@ class BlockBloom {
         // Generate new pieces if all empty
         if (this.pieces.every(p => p === null)) {
             this.generatePieces();
+        } else {
+            this.renderPieces();
         }
 
         // Check game over
         if (this.checkGameOver()) {
-            this.endGame();
+            setTimeout(() => this.endGame(), 500);
         }
 
         this.render();
@@ -358,17 +385,14 @@ class BlockBloom {
         const totalLines = rowsToClear.length + colsToClear.length;
 
         if (totalLines > 0) {
+            this.linesCleared += totalLines;
+
             // Calculate score
             let lineScore = totalLines * 10;
-
-            // Multi-line bonus
             if (totalLines >= 2) {
-                lineScore += (totalLines - 1) * 20;
+                lineScore += (totalLines - 1) * 25;
             }
-
-            // Apply combo multiplier
             lineScore = Math.floor(lineScore * this.comboMultiplier);
-
             this.addScore(lineScore);
 
             // Clear with animation
@@ -379,7 +403,6 @@ class BlockBloom {
     }
 
     clearLinesAnimated(rows, cols) {
-        // Mark cells for animation
         const cellsToClear = new Set();
 
         for (let y of rows) {
@@ -394,26 +417,27 @@ class BlockBloom {
             }
         }
 
-        // Add clearing class to cells
-        const board = document.getElementById('game-board');
-        const cells = board.querySelectorAll('.cell');
-
-        cellsToClear.forEach(coord => {
-            const [x, y] = coord.split(',').map(Number);
-            const index = y * this.gridSize + x;
-            if (cells[index]) {
-                cells[index].classList.add('clearing');
-            }
-        });
+        // Add clearing animation
+        const board = document.getElementById('board');
+        if (board) {
+            const cells = board.querySelectorAll('.cell');
+            cellsToClear.forEach(coord => {
+                const [x, y] = coord.split(',').map(Number);
+                const index = y * this.gridSize + x;
+                if (cells[index]) {
+                    cells[index].classList.add('clearing');
+                }
+            });
+        }
 
         // Clear after animation
         setTimeout(() => {
             cellsToClear.forEach(coord => {
                 const [x, y] = coord.split(',').map(Number);
-                this.grid[y][x] = { filled: false, color: null };
+                this.grid[y][x] = { filled: false, colorClass: null };
             });
             this.renderGrid();
-        }, 300);
+        }, 350);
     }
 
     // ==================== SCORING ====================
@@ -421,23 +445,45 @@ class BlockBloom {
         this.score += points;
         this.updateScoreDisplay();
 
-        if (this.score > this.highScore) {
-            this.highScore = this.score;
-            this.saveHighScore();
+        if (this.score > this.bestScore) {
+            this.bestScore = this.score;
+            this.saveBestScore();
         }
     }
 
     updateScoreDisplay() {
-        document.getElementById('score').textContent = this.score.toLocaleString();
-        document.getElementById('high-score').textContent = this.highScore.toLocaleString();
+        const scoreEl = document.getElementById('score');
+        const bestEl = document.getElementById('best-score');
 
-        // Update combo display
-        const comboEl = document.getElementById('combo-value');
-        comboEl.textContent = `x${this.comboMultiplier.toFixed(1)}`;
+        if (scoreEl) scoreEl.textContent = this.score.toLocaleString();
+        if (bestEl) bestEl.textContent = this.bestScore.toLocaleString();
 
-        const comboFill = document.getElementById('combo-fill');
-        const comboPercent = Math.min(100, (this.comboMultiplier - 1) / 2 * 100);
-        comboFill.style.width = `${comboPercent}%`;
+        // Update combo
+        const comboValue = document.getElementById('combo-value');
+        const comboBar = document.getElementById('combo-bar');
+
+        if (comboValue) comboValue.textContent = `x${this.comboMultiplier.toFixed(1)}`;
+        if (comboBar) {
+            const comboPercent = Math.min(100, (this.comboMultiplier - 1) / 2 * 100);
+            comboBar.style.width = `${comboPercent}%`;
+        }
+    }
+
+    showComboPopup(lines) {
+        const popup = document.getElementById('combo-popup');
+        if (!popup) return;
+
+        let text = '';
+        if (lines >= 4) text = 'INCREDIBLE!';
+        else if (lines >= 3) text = 'AMAZING!';
+        else if (lines >= 2) text = 'GREAT!';
+        else if (this.combo >= 3) text = `${this.combo}x COMBO!`;
+        else return;
+
+        popup.textContent = text;
+        popup.classList.remove('show');
+        void popup.offsetWidth;
+        popup.classList.add('show');
     }
 
     // ==================== FLOW METER ====================
@@ -450,30 +496,23 @@ class BlockBloom {
         if (this.flowDecayTimer) clearInterval(this.flowDecayTimer);
 
         this.flowDecayTimer = setInterval(() => {
-            if (this.flowMeter > 0 && !this.isGameOver) {
-                this.flowMeter = Math.max(0, this.flowMeter - 2);
+            if (this.flowMeter > 0 && !this.isGameOver && this.gameStarted) {
+                this.flowMeter = Math.max(0, this.flowMeter - 1);
                 this.updateFlowDisplay();
             }
-        }, 1000);
+        }, 500);
     }
 
     updateFlowDisplay() {
-        const flowFill = document.getElementById('flow-fill');
-        flowFill.style.width = `${this.flowMeter}%`;
+        const flowValue = document.getElementById('flow-value');
+        const flowBar = document.getElementById('flow-bar');
 
-        // Update color based on level
-        if (this.flowMeter >= 75) {
-            flowFill.style.background = 'linear-gradient(90deg, #4ECDC4, #2ECC71)';
-        } else if (this.flowMeter >= 50) {
-            flowFill.style.background = 'linear-gradient(90deg, #F39C12, #4ECDC4)';
-        } else {
-            flowFill.style.background = 'linear-gradient(90deg, #E74C3C, #F39C12)';
-        }
+        if (flowValue) flowValue.textContent = `${Math.round(this.flowMeter)}%`;
+        if (flowBar) flowBar.style.width = `${this.flowMeter}%`;
     }
 
     // ==================== GAME STATE ====================
     checkGameOver() {
-        // Check if any piece can be placed anywhere
         for (let piece of this.pieces) {
             if (piece === null) continue;
 
@@ -488,45 +527,55 @@ class BlockBloom {
         return true;
     }
 
-    endGame() {
-        this.isGameOver = true;
-
-        // Update stats
-        this.stats.gamesPlayed = (this.stats.gamesPlayed || 0) + 1;
-        this.stats.totalScore = (this.stats.totalScore || 0) + this.score;
-        if (this.score > (this.stats.bestScore || 0)) {
-            this.stats.bestScore = this.score;
-        }
-        this.saveStats();
-
-        // Show game over modal
-        document.getElementById('final-score').textContent = this.score.toLocaleString();
-        document.getElementById('final-high-score').textContent = this.highScore.toLocaleString();
-        document.getElementById('game-over-modal').classList.remove('hidden');
-
-        // Clear saved game
-        localStorage.removeItem('blockbloom_save');
-    }
-
-    restart() {
+    startGame(mode = 'classic') {
+        this.gameMode = mode;
         this.score = 0;
         this.combo = 0;
         this.comboMultiplier = 1.0;
+        this.maxCombo = 0;
         this.flowMeter = 0;
         this.isGameOver = false;
+        this.gameStarted = true;
         this.pieces = [null, null, null];
         this.moveHistory = [];
         this.undosRemaining = 3;
         this.swapsRemaining = 1;
-        this.bombsRemaining = 1;
+        this.bombsRemaining = 0;
+        this.linesCleared = 0;
+        this.piecesPlaced = 0;
 
         this.createGrid();
         this.generatePieces();
         this.render();
         this.updatePowerUpButtons();
+        this.startFlowDecay();
 
-        document.getElementById('game-over-modal').classList.add('hidden');
-        document.getElementById('menu-modal').classList.add('hidden');
+        this.hideModal('menu-modal');
+        this.hideModal('gameover-modal');
+
+        // Apply theme
+        document.body.classList.toggle('theme-zen', mode === 'zen' || this.zenTheme);
+    }
+
+    endGame() {
+        this.isGameOver = true;
+        this.gameStarted = false;
+
+        // Update modal
+        const finalScore = document.getElementById('final-score');
+        const modalBest = document.getElementById('modal-best');
+        const statLines = document.getElementById('stat-lines');
+        const statCombo = document.getElementById('stat-combo');
+        const statPieces = document.getElementById('stat-pieces');
+
+        if (finalScore) finalScore.textContent = this.score.toLocaleString();
+        if (modalBest) modalBest.textContent = this.bestScore.toLocaleString();
+        if (statLines) statLines.textContent = this.linesCleared;
+        if (statCombo) statCombo.textContent = `x${this.maxCombo}`;
+        if (statPieces) statPieces.textContent = this.piecesPlaced;
+
+        this.showModal('gameover-modal');
+        localStorage.removeItem('blockbloom_save');
     }
 
     // ==================== POWER-UPS ====================
@@ -545,9 +594,7 @@ class BlockBloom {
     }
 
     undo() {
-        if (this.undosRemaining <= 0 || this.moveHistory.length === 0) {
-            return false;
-        }
+        if (this.undosRemaining <= 0 || this.moveHistory.length === 0) return false;
 
         const state = this.moveHistory.pop();
         this.grid = state.grid;
@@ -560,34 +607,27 @@ class BlockBloom {
         this.render();
         this.updatePowerUpButtons();
         this.haptic();
-
         return true;
     }
 
     swapPieces() {
         if (this.swapsRemaining <= 0) return false;
 
-        // Save current pieces
         this.saveState();
-
-        // Generate new pieces
         this.pieces = [null, null, null];
         this.generatePieces();
 
         this.swapsRemaining--;
         this.updatePowerUpButtons();
         this.haptic();
-
         return true;
     }
 
     activateBomb() {
         if (this.bombsRemaining <= 0) return false;
 
-        // Enter bomb mode
-        document.getElementById('game-board').classList.add('bomb-mode');
         this.isBombMode = true;
-
+        document.getElementById('board')?.classList.add('bomb-mode');
         return true;
     }
 
@@ -596,202 +636,235 @@ class BlockBloom {
 
         this.saveState();
 
-        // Clear 3x3 area around click
         for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
                 const nx = x + dx;
                 const ny = y + dy;
                 if (nx >= 0 && nx < this.gridSize && ny >= 0 && ny < this.gridSize) {
-                    this.grid[ny][nx] = { filled: false, color: null };
+                    this.grid[ny][nx] = { filled: false, colorClass: null };
                 }
             }
         }
 
         this.bombsRemaining--;
         this.isBombMode = false;
-        document.getElementById('game-board').classList.remove('bomb-mode');
+        document.getElementById('board')?.classList.remove('bomb-mode');
 
         this.render();
         this.updatePowerUpButtons();
         this.haptic();
-
         return true;
     }
 
     updatePowerUpButtons() {
-        document.getElementById('undo-count').textContent = this.undosRemaining;
-        document.getElementById('swap-count').textContent = this.swapsRemaining;
-        document.getElementById('bomb-count').textContent = this.bombsRemaining;
+        const undoCount = document.getElementById('undo-count');
+        const swapCount = document.getElementById('swap-count');
+        const bombCount = document.getElementById('bomb-count');
+        const undoBtn = document.getElementById('undo-btn');
+        const swapBtn = document.getElementById('swap-btn');
+        const bombBtn = document.getElementById('bomb-btn');
 
-        document.getElementById('undo-btn').disabled = this.undosRemaining <= 0 || this.moveHistory.length === 0;
-        document.getElementById('swap-btn').disabled = this.swapsRemaining <= 0;
-        document.getElementById('bomb-btn').disabled = this.bombsRemaining <= 0;
+        if (undoCount) undoCount.textContent = this.undosRemaining;
+        if (swapCount) swapCount.textContent = this.swapsRemaining;
+        if (bombCount) bombCount.textContent = this.bombsRemaining;
+
+        if (undoBtn) undoBtn.disabled = this.undosRemaining <= 0 || this.moveHistory.length === 0;
+        if (swapBtn) swapBtn.disabled = this.swapsRemaining <= 0;
+        if (bombBtn) bombBtn.disabled = this.bombsRemaining <= 0;
     }
 
     // ==================== DRAG & DROP ====================
-    setupEventListeners() {
-        const board = document.getElementById('game-board');
+    addPieceDragListeners(slot, index) {
+        // Touch events
+        slot.addEventListener('touchstart', (e) => this.startDrag(e, index), { passive: false });
 
-        // Board events for placement
-        board.addEventListener('click', (e) => {
+        // Mouse events
+        slot.addEventListener('mousedown', (e) => this.startDrag(e, index));
+    }
+
+    setupEventListeners() {
+        // Global drag events
+        document.addEventListener('touchmove', (e) => this.moveDrag(e), { passive: false });
+        document.addEventListener('touchend', (e) => this.endDrag(e));
+        document.addEventListener('mousemove', (e) => this.moveDrag(e));
+        document.addEventListener('mouseup', (e) => this.endDrag(e));
+
+        // Board click for bomb
+        document.getElementById('board')?.addEventListener('click', (e) => {
             if (this.isBombMode) {
                 const cell = e.target.closest('.cell');
                 if (cell) {
-                    const x = parseInt(cell.dataset.x);
-                    const y = parseInt(cell.dataset.y);
-                    this.useBomb(x, y);
+                    this.useBomb(parseInt(cell.dataset.x), parseInt(cell.dataset.y));
                 }
             }
         });
 
-        // Piece drag events
-        for (let i = 0; i < 3; i++) {
-            const tray = document.getElementById(`piece-${i}`);
-
-            // Touch events
-            tray.addEventListener('touchstart', (e) => this.startDrag(e, i), { passive: false });
-            document.addEventListener('touchmove', (e) => this.moveDrag(e), { passive: false });
-            document.addEventListener('touchend', (e) => this.endDrag(e));
-
-            // Mouse events
-            tray.addEventListener('mousedown', (e) => this.startDrag(e, i));
-            document.addEventListener('mousemove', (e) => this.moveDrag(e));
-            document.addEventListener('mouseup', (e) => this.endDrag(e));
-        }
-
         // Power-up buttons
-        document.getElementById('undo-btn').addEventListener('click', () => this.undo());
-        document.getElementById('swap-btn').addEventListener('click', () => this.swapPieces());
-        document.getElementById('bomb-btn').addEventListener('click', () => this.activateBomb());
+        document.getElementById('undo-btn')?.addEventListener('click', () => this.undo());
+        document.getElementById('swap-btn')?.addEventListener('click', () => this.swapPieces());
+        document.getElementById('bomb-btn')?.addEventListener('click', () => this.activateBomb());
 
         // Menu button
-        document.getElementById('menu-btn').addEventListener('click', () => {
-            document.getElementById('menu-modal').classList.remove('hidden');
+        document.getElementById('menu-btn')?.addEventListener('click', () => {
+            this.showModal('menu-modal');
         });
 
-        // Modal buttons
-        document.getElementById('resume-btn').addEventListener('click', () => {
-            document.getElementById('menu-modal').classList.add('hidden');
+        // Mode selection
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                this.gameMode = btn.dataset.mode;
+            });
         });
 
-        document.getElementById('restart-btn').addEventListener('click', () => {
-            this.restart();
+        // Start game button
+        document.getElementById('start-game-btn')?.addEventListener('click', () => {
+            const selectedMode = document.querySelector('.mode-btn.selected')?.dataset.mode || 'classic';
+            this.startGame(selectedMode);
         });
 
-        document.getElementById('settings-btn').addEventListener('click', () => {
-            document.getElementById('menu-modal').classList.add('hidden');
-            document.getElementById('settings-modal').classList.remove('hidden');
+        // Play again
+        document.getElementById('play-again-btn')?.addEventListener('click', () => {
+            this.startGame(this.gameMode);
         });
 
-        document.getElementById('play-again-btn').addEventListener('click', () => {
-            this.restart();
+        // Menu from game over
+        document.getElementById('menu-from-gameover')?.addEventListener('click', () => {
+            this.hideModal('gameover-modal');
+            this.showModal('menu-modal');
         });
 
-        document.getElementById('share-btn').addEventListener('click', () => {
-            this.shareScore();
+        // Settings
+        document.getElementById('settings-btn')?.addEventListener('click', () => {
+            this.hideModal('menu-modal');
+            this.showModal('settings-modal');
         });
 
-        // Settings modal
-        document.getElementById('close-settings').addEventListener('click', () => {
-            document.getElementById('settings-modal').classList.add('hidden');
+        document.getElementById('close-settings-btn')?.addEventListener('click', () => {
+            this.hideModal('settings-modal');
+            this.showModal('menu-modal');
         });
 
-        document.getElementById('sound-toggle').addEventListener('change', (e) => {
-            this.soundEnabled = e.target.checked;
+        // Settings toggles
+        document.getElementById('toggle-sound')?.addEventListener('click', (e) => {
+            e.currentTarget.classList.toggle('active');
+            this.soundEnabled = e.currentTarget.classList.contains('active');
             this.saveSettings();
         });
 
-        document.getElementById('haptic-toggle').addEventListener('change', (e) => {
-            this.hapticEnabled = e.target.checked;
+        document.getElementById('toggle-haptic')?.addEventListener('click', (e) => {
+            e.currentTarget.classList.toggle('active');
+            this.hapticEnabled = e.currentTarget.classList.contains('active');
             this.saveSettings();
         });
 
-        document.getElementById('theme-select').addEventListener('change', (e) => {
-            this.setTheme(e.target.value);
+        document.getElementById('toggle-colorblind')?.addEventListener('click', (e) => {
+            e.currentTarget.classList.toggle('active');
+            this.colorblindMode = e.currentTarget.classList.contains('active');
+            document.body.classList.toggle('colorblind-mode', this.colorblindMode);
+            this.saveSettings();
+        });
+
+        document.getElementById('toggle-zen-theme')?.addEventListener('click', (e) => {
+            e.currentTarget.classList.toggle('active');
+            this.zenTheme = e.currentTarget.classList.contains('active');
+            document.body.classList.toggle('theme-zen', this.zenTheme);
+            this.saveSettings();
         });
 
         // Tutorial
-        document.getElementById('close-tutorial').addEventListener('click', () => {
-            document.getElementById('tutorial-modal').classList.add('hidden');
-            this.isTutorial = false;
+        document.getElementById('tutorial-next-btn')?.addEventListener('click', () => {
+            this.nextTutorialStep();
         });
 
-        document.getElementById('tutorial-next').addEventListener('click', () => {
-            this.nextTutorialStep();
+        document.getElementById('reset-tutorial-btn')?.addEventListener('click', () => {
+            localStorage.removeItem('blockbloom_tutorial_done');
+            this.tutorialDone = false;
+            this.hideModal('settings-modal');
+            this.startTutorial();
         });
     }
 
     startDrag(e, pieceIndex) {
-        if (this.isGameOver || this.pieces[pieceIndex] === null) return;
+        if (this.isGameOver || !this.gameStarted || this.pieces[pieceIndex] === null) return;
 
         e.preventDefault();
 
         this.draggedPiece = this.pieces[pieceIndex];
         this.draggedPieceIndex = pieceIndex;
 
-        const tray = document.getElementById(`piece-${pieceIndex}`);
-        tray.classList.add('dragging');
+        const slot = document.querySelector(`.piece-slot[data-index="${pieceIndex}"]`);
+        if (slot) slot.classList.add('dragging');
 
-        // Create floating piece
         this.createFloatingPiece(e);
     }
 
     createFloatingPiece(e) {
-        const existing = document.getElementById('floating-piece');
-        if (existing) existing.remove();
+        if (this.floatingElement) this.floatingElement.remove();
 
         const piece = this.draggedPiece;
         const floater = document.createElement('div');
         floater.id = 'floating-piece';
-        floater.className = 'floating-piece';
-        floater.style.gridTemplateColumns = `repeat(${piece.shape[0].length}, 28px)`;
-        floater.style.gridTemplateRows = `repeat(${piece.shape.length}, 28px)`;
+        floater.style.cssText = `
+            position: fixed;
+            pointer-events: none;
+            z-index: 1000;
+            display: grid;
+            gap: 2px;
+            grid-template-columns: repeat(${piece.shape[0].length}, 28px);
+            transform: translate(-50%, -100%) translateY(-20px);
+        `;
 
         for (let y = 0; y < piece.shape.length; y++) {
             for (let x = 0; x < piece.shape[y].length; x++) {
                 const cell = document.createElement('div');
-                cell.className = 'floating-cell';
+                cell.style.cssText = `
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 4px;
+                `;
                 if (piece.shape[y][x] === 1) {
-                    cell.classList.add('filled');
-                    cell.style.backgroundColor = piece.color;
+                    cell.classList.add(piece.colorClass);
+                    cell.style.boxShadow = 'inset 0 2px 4px rgba(255,255,255,0.25)';
                 }
                 floater.appendChild(cell);
             }
         }
 
         document.body.appendChild(floater);
+        this.floatingElement = floater;
         this.updateFloatingPosition(e);
     }
 
     updateFloatingPosition(e) {
-        const floater = document.getElementById('floating-piece');
-        if (!floater) return;
+        if (!this.floatingElement) return;
 
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-        floater.style.left = `${clientX - floater.offsetWidth / 2}px`;
-        floater.style.top = `${clientY - floater.offsetHeight - 40}px`;
+        this.floatingElement.style.left = `${clientX}px`;
+        this.floatingElement.style.top = `${clientY}px`;
     }
 
     moveDrag(e) {
         if (!this.draggedPiece) return;
 
         e.preventDefault();
-
         this.updateFloatingPosition(e);
 
         // Calculate grid position
-        const board = document.getElementById('game-board');
+        const board = document.getElementById('board');
+        if (!board) return;
+
         const rect = board.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
         const cellSize = rect.width / this.gridSize;
         const x = Math.floor((clientX - rect.left) / cellSize);
-        const y = Math.floor((clientY - rect.top) / cellSize);
+        const y = Math.floor((clientY - rect.top - 50) / cellSize); // Offset for finger
 
-        // Update ghost position
         if (x >= 0 && x < this.gridSize && y >= 0 && y < this.gridSize) {
             this.ghostPosition = { x, y };
         } else {
@@ -804,11 +877,13 @@ class BlockBloom {
     endDrag(e) {
         if (!this.draggedPiece) return;
 
-        const floater = document.getElementById('floating-piece');
-        if (floater) floater.remove();
+        if (this.floatingElement) {
+            this.floatingElement.remove();
+            this.floatingElement = null;
+        }
 
-        const tray = document.getElementById(`piece-${this.draggedPieceIndex}`);
-        if (tray) tray.classList.remove('dragging');
+        const slot = document.querySelector(`.piece-slot[data-index="${this.draggedPieceIndex}"]`);
+        if (slot) slot.classList.remove('dragging');
 
         // Try to place piece
         if (this.ghostPosition) {
@@ -824,15 +899,23 @@ class BlockBloom {
     // ==================== RENDERING ====================
     render() {
         this.renderGrid();
-        this.renderPieces();
         this.updateScoreDisplay();
         this.updateFlowDisplay();
         this.updatePowerUpButtons();
     }
 
+    // ==================== MODALS ====================
+    showModal(id) {
+        document.getElementById(id)?.classList.add('visible');
+    }
+
+    hideModal(id) {
+        document.getElementById(id)?.classList.remove('visible');
+    }
+
     // ==================== SAVE/LOAD ====================
     saveGame() {
-        if (this.gameMode !== 'classic') return;
+        if (this.gameMode !== 'classic' || !this.gameStarted) return;
 
         const save = {
             grid: this.grid,
@@ -844,7 +927,8 @@ class BlockBloom {
             undosRemaining: this.undosRemaining,
             swapsRemaining: this.swapsRemaining,
             bombsRemaining: this.bombsRemaining,
-            moveHistory: this.moveHistory
+            linesCleared: this.linesCleared,
+            piecesPlaced: this.piecesPlaced
         };
 
         localStorage.setItem('blockbloom_save', JSON.stringify(save));
@@ -865,39 +949,33 @@ class BlockBloom {
             this.undosRemaining = data.undosRemaining;
             this.swapsRemaining = data.swapsRemaining;
             this.bombsRemaining = data.bombsRemaining;
-            this.moveHistory = data.moveHistory || [];
+            this.linesCleared = data.linesCleared || 0;
+            this.piecesPlaced = data.piecesPlaced || 0;
+            this.gameStarted = true;
 
             this.render();
+            this.renderPieces();
             return true;
         } catch (e) {
             return false;
         }
     }
 
-    showResumeDialog() {
-        // Simple confirm for now
-        if (confirm('Continue previous game?')) {
-            this.loadGame();
-        } else {
-            localStorage.removeItem('blockbloom_save');
-        }
+    saveBestScore() {
+        localStorage.setItem('blockbloom_best', this.bestScore.toString());
     }
 
-    saveHighScore() {
-        localStorage.setItem('blockbloom_highscore', this.highScore.toString());
-    }
-
-    loadHighScore() {
-        this.highScore = parseInt(localStorage.getItem('blockbloom_highscore') || '0');
+    loadBestScore() {
+        this.bestScore = parseInt(localStorage.getItem('blockbloom_best') || '0');
     }
 
     saveSettings() {
-        const settings = {
+        localStorage.setItem('blockbloom_settings', JSON.stringify({
             soundEnabled: this.soundEnabled,
             hapticEnabled: this.hapticEnabled,
-            theme: this.theme
-        };
-        localStorage.setItem('blockbloom_settings', JSON.stringify(settings));
+            colorblindMode: this.colorblindMode,
+            zenTheme: this.zenTheme
+        }));
     }
 
     loadSettings() {
@@ -906,30 +984,26 @@ class BlockBloom {
             const data = JSON.parse(settings);
             this.soundEnabled = data.soundEnabled ?? true;
             this.hapticEnabled = data.hapticEnabled ?? true;
-            this.theme = data.theme || 'default';
+            this.colorblindMode = data.colorblindMode ?? false;
+            this.zenTheme = data.zenTheme ?? false;
 
-            document.getElementById('sound-toggle').checked = this.soundEnabled;
-            document.getElementById('haptic-toggle').checked = this.hapticEnabled;
-            document.getElementById('theme-select').value = this.theme;
+            // Apply to toggles
+            if (this.soundEnabled) document.getElementById('toggle-sound')?.classList.add('active');
+            else document.getElementById('toggle-sound')?.classList.remove('active');
 
-            this.setTheme(this.theme);
+            if (this.hapticEnabled) document.getElementById('toggle-haptic')?.classList.add('active');
+            else document.getElementById('toggle-haptic')?.classList.remove('active');
+
+            if (this.colorblindMode) {
+                document.getElementById('toggle-colorblind')?.classList.add('active');
+                document.body.classList.add('colorblind-mode');
+            }
+
+            if (this.zenTheme) {
+                document.getElementById('toggle-zen-theme')?.classList.add('active');
+                document.body.classList.add('theme-zen');
+            }
         }
-    }
-
-    loadStats() {
-        const stats = localStorage.getItem('blockbloom_stats');
-        return stats ? JSON.parse(stats) : {};
-    }
-
-    saveStats() {
-        localStorage.setItem('blockbloom_stats', JSON.stringify(this.stats));
-    }
-
-    // ==================== THEME ====================
-    setTheme(theme) {
-        this.theme = theme;
-        document.body.setAttribute('data-theme', theme);
-        this.saveSettings();
     }
 
     // ==================== UTILITIES ====================
@@ -939,67 +1013,38 @@ class BlockBloom {
         }
     }
 
-    shareScore() {
-        const text = `I scored ${this.score.toLocaleString()} in Block Bloom! Can you beat it?`;
-
-        if (navigator.share) {
-            navigator.share({
-                title: 'Block Bloom',
-                text: text,
-                url: window.location.href
-            });
-        } else {
-            navigator.clipboard.writeText(text);
-            alert('Score copied to clipboard!');
-        }
-    }
-
     // ==================== TUTORIAL ====================
     startTutorial() {
-        this.isTutorial = true;
         this.tutorialStep = 0;
-        document.getElementById('tutorial-modal').classList.remove('hidden');
         this.updateTutorialStep();
+        this.showModal('tutorial-overlay');
     }
 
     updateTutorialStep() {
         const steps = [
-            {
-                title: 'Welcome to Block Bloom!',
-                content: 'Drag and drop blocks onto the 10x10 grid. Fill complete rows or columns to clear them!'
-            },
-            {
-                title: 'Scoring',
-                content: 'Earn points for placing blocks and clearing lines. Clear multiple lines at once for bonus points!'
-            },
-            {
-                title: 'Combo System',
-                content: 'Clear lines consecutively to build your combo multiplier. Keep the flow going for higher scores!'
-            },
-            {
-                title: 'Power-ups',
-                content: 'Use Undo to reverse moves, Swap to get new pieces, or Bomb to clear a 3x3 area!'
-            },
-            {
-                title: "You're Ready!",
-                content: 'Place blocks strategically and aim for the high score. Good luck!'
-            }
+            { title: 'Welcome!', text: 'Drag blocks from the tray and drop them onto the 10x10 grid.' },
+            { title: 'Clear Lines', text: 'Fill a complete row or column to clear it and score points!' },
+            { title: 'Build Combos', text: 'Clear lines consecutively to build your combo multiplier for higher scores!' }
         ];
 
         const step = steps[this.tutorialStep];
-        document.getElementById('tutorial-title').textContent = step.title;
-        document.getElementById('tutorial-content').textContent = step.content;
+        const stepEl = document.getElementById('tutorial-step');
+        const titleEl = document.getElementById('tutorial-title');
+        const textEl = document.getElementById('tutorial-text');
+        const nextBtn = document.getElementById('tutorial-next-btn');
 
-        const nextBtn = document.getElementById('tutorial-next');
-        nextBtn.textContent = this.tutorialStep === steps.length - 1 ? 'Start Playing' : 'Next';
+        if (stepEl) stepEl.textContent = `Step ${this.tutorialStep + 1} of ${steps.length}`;
+        if (titleEl) titleEl.textContent = step.title;
+        if (textEl) textEl.textContent = step.text;
+        if (nextBtn) nextBtn.textContent = this.tutorialStep === steps.length - 1 ? 'Got it!' : 'Next';
     }
 
     nextTutorialStep() {
         this.tutorialStep++;
 
-        if (this.tutorialStep >= 5) {
-            document.getElementById('tutorial-modal').classList.add('hidden');
-            this.isTutorial = false;
+        if (this.tutorialStep >= 3) {
+            this.hideModal('tutorial-overlay');
+            this.tutorialDone = true;
             localStorage.setItem('blockbloom_tutorial_done', 'true');
         } else {
             this.updateTutorialStep();
@@ -1012,14 +1057,9 @@ let game;
 
 document.addEventListener('DOMContentLoaded', () => {
     game = new BlockBloom();
-
-    // Show tutorial for first-time users
-    if (!localStorage.getItem('blockbloom_tutorial_done')) {
-        game.startTutorial();
-    }
 });
 
-// Service Worker Registration
+// Service Worker
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
