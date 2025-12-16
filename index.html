@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="description" content="Block Bloom - A relaxing block puzzle game">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <title>Block Bloom</title>
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="icon" type="image/png" href="icons/icon-192.png">
+
+    <style>
+        /* ============================================
+           BLOCK BLOOM - Premium Block Puzzle Game
+           ============================================ */
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Theme: Default */
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-tertiary: #0f3460;
+            --bg-grid: #0f0f23;
+            --accent: #e94560;
+            --accent-light: #ff6b6b;
+            --accent-glow: rgba(233, 69, 96, 0.4);
+            --text-primary: #ffffff;
+            --text-secondary: #8892b0;
+            --cell-empty: #252542;
+            --cell-border: #333355;
+            --success: #00d9a5;
+            --warning: #ffd93d;
+
+            /* Block Colors */
+            --block-1: #e94560;
+            --block-2: #4361ee;
+            --block-3: #2ec4b6;
+            --block-4: #f9c74f;
+            --block-5: #9b5de5;
+            --block-6: #ff6b35;
+            --block-7: #00d4ff;
+        }
+
+        /* Zen Theme */
+        .theme-zen {
+            --bg-primary: #2d3436;
+            --bg-secondary: #3d4852;
+            --bg-grid: #1e272e;
+            --accent: #74b9ff;
+            --accent-glow: rgba(116, 185, 255, 0.3);
+            --cell-empty: #3d4852;
+        }
+
+        /* Color-blind friendly */
+        .colorblind-mode {
+            --block-1: #d55e00;
+            --block-2: #0072b2;
+            --block-3: #009e73;
+            --block-4: #f0e442;
+            --block-5: #cc79a7;
+            --block-6: #e69f00;
+            --block-7: #56b4e9;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            user-select: none;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: env(safe-area-inset-top, 0) 12px env(safe-area-inset-bottom, 0);
+        }
+
+        /* ============================================
+           HEADER
+           ============================================ */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            flex-shrink: 0;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .menu-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-secondary);
+            border: none;
+            border-radius: 12px;
+            color: var(--text-secondary);
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .menu-btn:active {
+            transform: scale(0.95);
+            background: var(--bg-tertiary);
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent), var(--accent-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .score-area {
+            display: flex;
+            gap: 12px;
+        }
+
+        .score-box {
+            text-align: center;
+            background: var(--bg-secondary);
+            padding: 6px 14px;
+            border-radius: 12px;
+            min-width: 70px;
+        }
+
+        .score-label {
+            font-size: 9px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .score-value {
+            font-size: 18px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ============================================
+           METERS (Combo + Flow)
+           ============================================ */
+        .meters {
+            display: flex;
+            gap: 12px;
+            padding: 8px 0;
+            flex-shrink: 0;
+        }
+
+        .meter {
+            flex: 1;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 8px 12px;
+        }
+
+        .meter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .meter-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .meter-value {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .meter-bar {
+            height: 6px;
+            background: var(--cell-empty);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .meter-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-light));
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .meter-fill.flow {
+            background: linear-gradient(90deg, var(--success), #00f5d4);
+        }
+
+        /* ============================================
+           GAME BOARD
+           ============================================ */
+        .board-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 0;
+            min-height: 0;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 2px;
+            background: var(--bg-grid);
+            padding: 6px;
+            border-radius: 16px;
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            width: 100%;
+            max-width: min(90vw, 45vh);
+            aspect-ratio: 1;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background: var(--cell-empty);
+            border-radius: 3px;
+            transition: background-color 0.1s, transform 0.15s;
+            position: relative;
+        }
+
+        .cell.filled {
+            box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.25);
+        }
+
+        .cell.preview-valid {
+            background: var(--success) !important;
+            opacity: 0.6;
+        }
+
+        .cell.preview-invalid {
+            background: var(--accent) !important;
+            opacity: 0.4;
+        }
+
+        .cell.clearing {
+            animation: cell-clear 0.35s ease-out forwards;
+        }
+
+        @keyframes cell-clear {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        /* Block colors */
+        .cell.block-1 { background: var(--block-1); }
+        .cell.block-2 { background: var(--block-2); }
+        .cell.block-3 { background: var(--block-3); }
+        .cell.block-4 { background: var(--block-4); }
+        .cell.block-5 { background: var(--block-5); }
+        .cell.block-6 { background: var(--block-6); }
+        .cell.block-7 { background: var(--block-7); }
+
+        /* ============================================
+           PIECES TRAY
+           ============================================ */
+        .pieces-tray {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            padding: 12px;
+            margin: 8px 0;
+            min-height: 100px;
+            flex-shrink: 0;
+        }
+
+        .piece-slot {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100px;
+            height: 85px;
+            cursor: grab;
+            transition: transform 0.2s, opacity 0.2s;
+            touch-action: none;
+        }
+
+        .piece-slot:active {
+            cursor: grabbing;
+        }
+
+        .piece-slot.selected {
+            transform: scale(1.08);
+        }
+
+        .piece-slot.used {
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        .piece-slot.dragging {
+            opacity: 0.3;
+        }
+
+        .piece-slot.cannot-place {
+            opacity: 0.3;
+            filter: grayscale(0.5);
+        }
+
+        .piece-grid {
+            display: grid;
+            gap: 2px;
+        }
+
+        .piece-cell {
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
+            transition: transform 0.1s;
+        }
+
+        .piece-cell.filled {
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.3);
+        }
+
+        /* ============================================
+           POWER-UPS
+           ============================================ */
+        .powerups {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            padding: 8px 0 12px;
+            flex-shrink: 0;
+        }
+
+        .powerup-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 10px 16px;
+            background: var(--bg-secondary);
+            border: none;
+            border-radius: 14px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .powerup-btn:active {
+            transform: scale(0.95);
+        }
+
+        .powerup-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .powerup-icon {
+            font-size: 24px;
+        }
+
+        .powerup-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        .powerup-count {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            min-width: 18px;
+            height: 18px;
+            background: var(--accent);
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ============================================
+           FLOATING ELEMENTS
+           ============================================ */
+        .combo-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 42px;
+            font-weight: 800;
+            color: var(--accent);
+            text-shadow: 0 0 40px var(--accent-glow);
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0;
+        }
+
+        .combo-popup.show {
+            animation: combo-pop 0.9s ease-out forwards;
+        }
+
+        @keyframes combo-pop {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            15% { opacity: 1; transform: translate(-50%, -50%) scale(1.3); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1) translateY(-60px); }
+        }
+
+        .points-popup {
+            position: fixed;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--success);
+            pointer-events: none;
+            z-index: 45;
+            animation: points-float 1s ease-out forwards;
+        }
+
+        @keyframes points-float {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-40px) scale(0.8); }
+        }
+
+        /* ============================================
+           MODALS
+           ============================================ */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            padding: 28px;
+            border-radius: 24px;
+            text-align: center;
+            max-width: 340px;
+            width: 90%;
+            transform: scale(0.9) translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.visible .modal {
+            transform: scale(1) translateY(0);
+        }
+
+        .modal-icon {
+            font-size: 56px;
+            margin-bottom: 12px;
+        }
+
+        .modal-title {
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .modal-subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .modal-score {
+            font-size: 52px;
+            font-weight: 800;
+            color: var(--accent);
+            margin: 12px 0;
+        }
+
+        .modal-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .modal-stat {
+            background: var(--bg-primary);
+            padding: 12px;
+            border-radius: 12px;
+        }
+
+        .modal-stat-value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .modal-stat-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 16px 24px;
+            background: var(--accent);
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-secondary {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        /* Settings Modal */
+        .settings-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 16px 0;
+            text-align: left;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: var(--bg-primary);
+            border-radius: 12px;
+        }
+
+        .setting-label {
+            font-size: 14px;
+        }
+
+        .toggle {
+            width: 50px;
+            height: 28px;
+            background: var(--cell-empty);
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .toggle.active {
+            background: var(--accent);
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.2s;
+        }
+
+        .toggle.active::after {
+            transform: translateX(22px);
+        }
+
+        /* Mode Selection */
+        .mode-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 16px 0;
+        }
+
+        .mode-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: var(--bg-primary);
+            border: 2px solid transparent;
+            border-radius: 14px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .mode-btn:hover {
+            border-color: var(--accent);
+        }
+
+        .mode-btn.selected {
+            border-color: var(--accent);
+            background: rgba(233, 69, 96, 0.1);
+        }
+
+        .mode-icon {
+            font-size: 28px;
+        }
+
+        .mode-info {
+            flex: 1;
+        }
+
+        .mode-title {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .mode-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Tutorial overlay */
+        .tutorial-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .tutorial-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .tutorial-content {
+            text-align: center;
+            max-width: 300px;
+        }
+
+        .tutorial-step {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .tutorial-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .tutorial-text {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .tutorial-highlight {
+            position: absolute;
+            border: 3px solid var(--accent);
+            border-radius: 16px;
+            box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.85);
+            pointer-events: none;
+            transition: all 0.5s ease;
+        }
+
+        /* Responsive */
+        @media (max-height: 700px) {
+            .header { padding: 8px 0; }
+            .meters { padding: 4px 0; }
+            .board { max-width: min(85vw, 40vh); }
+            .pieces-tray { min-height: 85px; padding: 8px; }
+            .piece-slot { height: 75px; width: 85px; }
+            .piece-cell { width: 12px; height: 12px; }
+            .powerups { padding: 4px 0 8px; }
+        }
+
+        @media (max-height: 600px) {
+            .meters { display: none; }
+            .board { max-width: min(80vw, 38vh); }
+        }
+
+        /* Reduce motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="menu-btn" id="menu-btn" aria-label="Menu">☰</button>
+                <div class="logo">Block Bloom</div>
+            </div>
+            <div class="score-area">
+                <div class="score-box">
+                    <div class="score-label">Score</div>
+                    <div class="score-value" id="score">0</div>
+                </div>
+                <div class="score-box">
+                    <div class="score-label">Best</div>
+                    <div class="score-value" id="best-score">0</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Meters -->
+        <div class="meters">
+            <div class="meter">
+                <div class="meter-header">
+                    <span class="meter-label">Combo</span>
+                    <span class="meter-value" id="combo-value">x1.0</span>
+                </div>
+                <div class="meter-bar">
+                    <div class="meter-fill" id="combo-bar" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="meter">
+                <div class="meter-header">
+                    <span class="meter-label">Flow</span>
+                    <span class="meter-value" id="flow-value">0%</span>
+                </div>
+                <div class="meter-bar">
+                    <div class="meter-fill flow" id="flow-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Board -->
+        <div class="board-wrapper">
+            <div class="board" id="board"></div>
+        </div>
+
+        <!-- Pieces Tray -->
+        <div class="pieces-tray" id="pieces-tray"></div>
+
+        <!-- Power-ups -->
+        <div class="powerups">
+            <button class="powerup-btn" id="undo-btn" aria-label="Undo">
+                <span class="powerup-icon">↩️</span>
+                <span class="powerup-label">Undo</span>
+                <span class="powerup-count" id="undo-count">3</span>
+            </button>
+            <button class="powerup-btn" id="swap-btn" aria-label="Swap pieces">
+                <span class="powerup-icon">🔄</span>
+                <span class="powerup-label">Swap</span>
+                <span class="powerup-count" id="swap-count">1</span>
+            </button>
+            <button class="powerup-btn" id="bomb-btn" aria-label="Bomb">
+                <span class="powerup-icon">💣</span>
+                <span class="powerup-label">Bomb</span>
+                <span class="powerup-count" id="bomb-count">0</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Combo Popup -->
+    <div class="combo-popup" id="combo-popup"></div>
+
+    <!-- Game Over Modal -->
+    <div class="modal-overlay" id="gameover-modal">
+        <div class="modal">
+            <div class="modal-icon">🎮</div>
+            <div class="modal-title">Game Over!</div>
+            <div class="modal-score" id="final-score">0</div>
+            <div class="modal-stats">
+                <div class="modal-stat">
+                    <div class="modal-stat-value" id="stat-lines">0</div>
+                    <div class="modal-stat-label">Lines</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value" id="stat-combo">0</div>
+                    <div class="modal-stat-label">Best Combo</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value" id="stat-pieces">0</div>
+                    <div class="modal-stat-label">Pieces</div>
+                </div>
+            </div>
+            <div class="modal-subtitle">Best: <span id="modal-best">0</span></div>
+            <button class="btn" id="play-again-btn">Play Again</button>
+            <button class="btn btn-secondary" id="menu-from-gameover">Main Menu</button>
+        </div>
+    </div>
+
+    <!-- Menu Modal -->
+    <div class="modal-overlay" id="menu-modal">
+        <div class="modal">
+            <div class="modal-title">Block Bloom</div>
+            <div class="mode-buttons">
+                <button class="mode-btn selected" data-mode="classic">
+                    <span class="mode-icon">🎯</span>
+                    <div class="mode-info">
+                        <div class="mode-title">Classic</div>
+                        <div class="mode-desc">Endless puzzle challenge</div>
+                    </div>
+                </button>
+                <button class="mode-btn" data-mode="daily">
+                    <span class="mode-icon">📅</span>
+                    <div class="mode-info">
+                        <div class="mode-title">Daily Challenge</div>
+                        <div class="mode-desc">Same puzzle for everyone today</div>
+                    </div>
+                </button>
+                <button class="mode-btn" data-mode="zen">
+                    <span class="mode-icon">🧘</span>
+                    <div class="mode-info">
+                        <div class="mode-title">Zen Mode</div>
+                        <div class="mode-desc">Relaxed, no pressure</div>
+                    </div>
+                </button>
+            </div>
+            <button class="btn" id="start-game-btn">Start Game</button>
+            <button class="btn btn-secondary" id="settings-btn">Settings</button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal">
+            <div class="modal-title">Settings</div>
+            <div class="settings-grid">
+                <div class="setting-row">
+                    <span class="setting-label">Sound Effects</span>
+                    <div class="toggle active" id="toggle-sound"></div>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">Haptic Feedback</span>
+                    <div class="toggle active" id="toggle-haptic"></div>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">Color Blind Mode</span>
+                    <div class="toggle" id="toggle-colorblind"></div>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">Zen Theme</span>
+                    <div class="toggle" id="toggle-zen-theme"></div>
+                </div>
+            </div>
+            <button class="btn" id="close-settings-btn">Done</button>
+            <button class="btn btn-secondary" id="reset-tutorial-btn">Reset Tutorial</button>
+        </div>
+    </div>
+
+    <!-- Tutorial Overlay -->
+    <div class="tutorial-overlay" id="tutorial-overlay">
+        <div class="tutorial-content">
+            <div class="tutorial-step" id="tutorial-step">Step 1 of 3</div>
+            <div class="tutorial-title" id="tutorial-title">Welcome!</div>
+            <div class="tutorial-text" id="tutorial-text">Drag blocks from the tray onto the board.</div>
+            <button class="btn" id="tutorial-next-btn">Next</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
