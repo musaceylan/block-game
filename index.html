@@ -271,13 +271,39 @@
         }
 
         .cell.clearing {
-            animation: cell-clear 0.35s ease-out forwards;
+            animation: cell-clear 0.5s ease-out forwards;
         }
 
         @keyframes cell-clear {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.15); }
-            100% { transform: scale(0); opacity: 0; }
+            0% {
+                transform: scale(1);
+                opacity: 1;
+                filter: brightness(1);
+            }
+            30% {
+                transform: scale(1.2);
+                filter: brightness(2);
+                box-shadow: 0 0 20px currentColor, 0 0 40px rgba(255,255,255,0.5);
+            }
+            60% {
+                transform: scale(1.1);
+                filter: brightness(1.5);
+            }
+            100% {
+                transform: scale(0);
+                opacity: 0;
+                filter: brightness(0);
+            }
+        }
+
+        /* Line clear flash effect */
+        .board.line-clearing {
+            animation: board-flash 0.3s ease-out;
+        }
+
+        @keyframes board-flash {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.3); }
         }
 
         /* Block colors */
@@ -343,14 +369,16 @@
         }
 
         .piece-cell {
-            width: 14px;
-            height: 14px;
-            border-radius: 2px;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
             transition: transform 0.1s;
         }
 
         .piece-cell.filled {
-            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.3);
+            box-shadow:
+                inset 0 2px 4px rgba(255, 255, 255, 0.4),
+                0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
         /* ============================================
@@ -727,7 +755,7 @@
             .board { max-width: min(85vw, 40vh); }
             .pieces-tray { min-height: 85px; padding: 8px; }
             .piece-slot { height: 75px; width: 85px; }
-            .piece-cell { width: 12px; height: 12px; }
+            .piece-cell { width: 16px; height: 16px; }
             .powerups { padding: 4px 0 8px; }
         }
 

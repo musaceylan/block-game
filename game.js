@@ -420,6 +420,10 @@ class BlockBloom {
         // Add clearing animation
         const board = document.getElementById('board');
         if (board) {
+            // Flash the board
+            board.classList.add('line-clearing');
+            setTimeout(() => board.classList.remove('line-clearing'), 300);
+
             const cells = board.querySelectorAll('.cell');
             cellsToClear.forEach(coord => {
                 const [x, y] = coord.split(',').map(Number);
@@ -437,7 +441,7 @@ class BlockBloom {
                 this.grid[y][x] = { filled: false, colorClass: null };
             });
             this.renderGrid();
-        }, 350);
+        }, 500);
     }
 
     // ==================== SCORING ====================
