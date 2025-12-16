@@ -1,26 +1,19 @@
 /**
- * Block Bloom - A 10x10 Block Puzzle Game
- * Premium puzzle experience with combos, flow meter, and multiple modes
+ * Block Bloom - Premium Block Puzzle Game
+ * Enhanced with juicy animations and game feel
  */
 
 // ==================== PIECE DEFINITIONS ====================
 const PIECES = {
-    // Single (1 cell)
     dot: { shape: [[1]], weight: 5 },
-
-    // Domino (2 cells)
     domino_h: { shape: [[1, 1]], weight: 8 },
     domino_v: { shape: [[1], [1]], weight: 8 },
-
-    // Trominoes (3 cells)
     tromino_i_h: { shape: [[1, 1, 1]], weight: 10 },
     tromino_i_v: { shape: [[1], [1], [1]], weight: 10 },
     tromino_l1: { shape: [[1, 0], [1, 1]], weight: 10 },
     tromino_l2: { shape: [[0, 1], [1, 1]], weight: 10 },
     tromino_l3: { shape: [[1, 1], [1, 0]], weight: 10 },
     tromino_l4: { shape: [[1, 1], [0, 1]], weight: 10 },
-
-    // Tetrominoes (4 cells)
     tetro_i_h: { shape: [[1, 1, 1, 1]], weight: 12 },
     tetro_i_v: { shape: [[1], [1], [1], [1]], weight: 12 },
     tetro_o: { shape: [[1, 1], [1, 1]], weight: 12 },
@@ -34,22 +27,18 @@ const PIECES = {
     tetro_l2: { shape: [[0, 0, 1], [1, 1, 1]], weight: 12 },
     tetro_l3: { shape: [[1, 1, 1], [1, 0, 0]], weight: 12 },
     tetro_l4: { shape: [[1, 1, 1], [0, 0, 1]], weight: 12 },
-
-    // Pentominoes (5 cells)
     pento_i_h: { shape: [[1, 1, 1, 1, 1]], weight: 6 },
     pento_i_v: { shape: [[1], [1], [1], [1], [1]], weight: 6 },
     pento_plus: { shape: [[0, 1, 0], [1, 1, 1], [0, 1, 0]], weight: 6 },
     pento_u: { shape: [[1, 0, 1], [1, 1, 1]], weight: 6 },
-
-    // Large pieces (rare)
     big_l: { shape: [[1, 0, 0], [1, 0, 0], [1, 1, 1]], weight: 3 },
     big_square: { shape: [[1, 1, 1], [1, 1, 1], [1, 1, 1]], weight: 2 },
 };
 
-// Block color classes
-const BLOCK_COLORS = ['block-1', 'block-2', 'block-3', 'block-4', 'block-5', 'block-6', 'block-7'];
+const BLOCK_COLORS = ['block-1', 'block-2', 'block-3', 'block-4', 'block-5', 'block-6', 'block-7', 'block-8'];
+const PARTICLE_COLORS = ['#ff4d6d', '#4d79ff', '#00d68f', '#ffb800', '#a855f7', '#ff6b35', '#00d4ff', '#f472b6'];
 
-// ==================== GAME STATE ====================
+// ==================== GAME CLASS ====================
 class BlockBloom {
     constructor() {
         this.gridSize = 10;
@@ -73,21 +62,19 @@ class BlockBloom {
         this.isBombMode = false;
         this.linesCleared = 0;
         this.piecesPlaced = 0;
+        this.isNewBest = false;
+        this.previousBest = 0;
 
-        // Drag state
-        this.selectedPieceIndex = null;
         this.draggedPiece = null;
         this.draggedPieceIndex = null;
         this.ghostPosition = null;
         this.floatingElement = null;
 
-        // Settings
         this.soundEnabled = true;
         this.hapticEnabled = true;
         this.colorblindMode = false;
         this.zenTheme = false;
 
-        // Tutorial
         this.tutorialStep = 0;
         this.tutorialDone = localStorage.getItem('blockbloom_tutorial_done') === 'true';
 
@@ -99,17 +86,14 @@ class BlockBloom {
         this.loadBestScore();
         this.createGrid();
         this.setupEventListeners();
-
-        // Show menu on start
         this.showModal('menu-modal');
 
-        // Show tutorial for first time users
         if (!this.tutorialDone) {
             setTimeout(() => this.startTutorial(), 500);
         }
     }
 
-    // ==================== GRID MANAGEMENT ====================
+    // ==================== GRID ====================
     createGrid() {
         this.grid = [];
         for (let y = 0; y < this.gridSize; y++) {
@@ -137,7 +121,6 @@ class BlockBloom {
                     cell.classList.add('filled', this.grid[y][x].colorClass);
                 }
 
-                // Ghost preview
                 if (this.ghostPosition && this.draggedPiece) {
                     const shape = this.draggedPiece.shape;
                     const canPlace = this.canPlacePiece(this.draggedPiece, this.ghostPosition.x, this.ghostPosition.y);
@@ -160,7 +143,7 @@ class BlockBloom {
         }
     }
 
-    // ==================== PIECE GENERATION ====================
+    // ==================== PIECES ====================
     generatePieces() {
         const pieceKeys = Object.keys(PIECES);
         const weights = pieceKeys.map(k => PIECES[k].weight);
@@ -186,7 +169,8 @@ class BlockBloom {
                     key: selectedKey,
                     shape: pieceData.shape,
                     colorClass: colorClass,
-                    cellCount: this.countCells(pieceData.shape)
+                    cellCount: this.countCells(pieceData.shape),
+                    isNew: true
                 };
             }
         }
@@ -196,13 +180,7 @@ class BlockBloom {
     }
 
     countCells(shape) {
-        let count = 0;
-        for (let row of shape) {
-            for (let cell of row) {
-                if (cell === 1) count++;
-            }
-        }
-        return count;
+        return shape.flat().filter(c => c === 1).length;
     }
 
     renderPieces() {
@@ -223,6 +201,13 @@ class BlockBloom {
                 continue;
             }
 
+            // Entrance animation for new pieces
+            if (piece.isNew) {
+                slot.classList.add('entering');
+                piece.isNew = false;
+                setTimeout(() => slot.classList.remove('entering'), 500);
+            }
+
             const pieceGrid = document.createElement('div');
             pieceGrid.className = 'piece-grid';
             pieceGrid.style.gridTemplateColumns = `repeat(${piece.shape[0].length}, 1fr)`;
@@ -240,8 +225,6 @@ class BlockBloom {
 
             slot.appendChild(pieceGrid);
             tray.appendChild(slot);
-
-            // Add drag listeners
             this.addPieceDragListeners(slot, i);
         }
     }
@@ -267,7 +250,7 @@ class BlockBloom {
         });
     }
 
-    // ==================== PLACEMENT LOGIC ====================
+    // ==================== PLACEMENT ====================
     canPlacePiece(piece, startX, startY) {
         if (!piece) return false;
 
@@ -297,53 +280,56 @@ class BlockBloom {
             return false;
         }
 
-        // Save state for undo
         this.saveState();
 
-        // Place the piece
         const shape = piece.shape;
+        const placedCells = [];
+
         for (let y = 0; y < shape.length; y++) {
             for (let x = 0; x < shape[y].length; x++) {
                 if (shape[y][x] === 1) {
                     const gridX = startX + x;
                     const gridY = startY + y;
                     this.grid[gridY][gridX] = { filled: true, colorClass: piece.colorClass };
+                    placedCells.push({ x: gridX, y: gridY });
                 }
             }
         }
 
-        // Add placement score
         this.addScore(piece.cellCount);
         this.piecesPlaced++;
-
-        // Remove piece from tray
         this.pieces[pieceIndex] = null;
 
-        // Check and clear lines
+        // Animate placed cells
+        this.animatePlacedCells(placedCells);
+
         const cleared = this.checkAndClearLines();
 
-        // Update combo
         if (cleared > 0) {
             this.combo++;
             this.comboMultiplier = Math.min(3.0, 1.0 + (this.combo - 1) * 0.2);
             if (this.combo > this.maxCombo) this.maxCombo = this.combo;
             this.addFlowMeter(cleared * 15);
             this.showComboPopup(cleared);
+
+            // Screen shake for big clears
+            if (cleared >= 2) {
+                document.getElementById('board')?.classList.add('shake');
+                setTimeout(() => document.getElementById('board')?.classList.remove('shake'), 300);
+            }
         } else {
             this.combo = 0;
             this.comboMultiplier = 1.0;
         }
 
-        // Generate new pieces if all empty
         if (this.pieces.every(p => p === null)) {
-            this.generatePieces();
+            setTimeout(() => this.generatePieces(), 200);
         } else {
             this.renderPieces();
         }
 
-        // Check game over
         if (this.checkGameOver()) {
-            setTimeout(() => this.endGame(), 500);
+            setTimeout(() => this.endGame(), 600);
         }
 
         this.render();
@@ -353,24 +339,34 @@ class BlockBloom {
         return true;
     }
 
+    animatePlacedCells(cells) {
+        const board = document.getElementById('board');
+        if (!board) return;
+
+        cells.forEach((cell, i) => {
+            const index = cell.y * this.gridSize + cell.x;
+            const cellEl = board.children[index];
+            if (cellEl) {
+                cellEl.style.transform = 'scale(0)';
+                cellEl.style.transition = 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                setTimeout(() => {
+                    cellEl.style.transform = 'scale(1)';
+                }, i * 30);
+            }
+        });
+    }
+
     // ==================== LINE CLEARING ====================
     checkAndClearLines() {
         const rowsToClear = [];
         const colsToClear = [];
 
-        // Check rows
         for (let y = 0; y < this.gridSize; y++) {
-            let full = true;
-            for (let x = 0; x < this.gridSize; x++) {
-                if (!this.grid[y][x].filled) {
-                    full = false;
-                    break;
-                }
+            if (this.grid[y].every(cell => cell.filled)) {
+                rowsToClear.push(y);
             }
-            if (full) rowsToClear.push(y);
         }
 
-        // Check columns
         for (let x = 0; x < this.gridSize; x++) {
             let full = true;
             for (let y = 0; y < this.gridSize; y++) {
@@ -387,15 +383,11 @@ class BlockBloom {
         if (totalLines > 0) {
             this.linesCleared += totalLines;
 
-            // Calculate score
             let lineScore = totalLines * 10;
-            if (totalLines >= 2) {
-                lineScore += (totalLines - 1) * 25;
-            }
+            if (totalLines >= 2) lineScore += (totalLines - 1) * 25;
             lineScore = Math.floor(lineScore * this.comboMultiplier);
             this.addScore(lineScore);
 
-            // Clear with animation
             this.clearLinesAnimated(rowsToClear, colsToClear);
         }
 
@@ -417,12 +409,10 @@ class BlockBloom {
             }
         }
 
-        // Add clearing animation
         const board = document.getElementById('board');
         if (board) {
-            // Flash the board
             board.classList.add('line-clearing');
-            setTimeout(() => board.classList.remove('line-clearing'), 300);
+            setTimeout(() => board.classList.remove('line-clearing'), 400);
 
             const cells = board.querySelectorAll('.cell');
             cellsToClear.forEach(coord => {
@@ -430,26 +420,72 @@ class BlockBloom {
                 const index = y * this.gridSize + x;
                 if (cells[index]) {
                     cells[index].classList.add('clearing');
+
+                    // Spawn particles
+                    this.spawnParticles(cells[index], 5);
                 }
             });
         }
 
-        // Clear after animation
         setTimeout(() => {
             cellsToClear.forEach(coord => {
                 const [x, y] = coord.split(',').map(Number);
                 this.grid[y][x] = { filled: false, colorClass: null };
             });
             this.renderGrid();
-        }, 500);
+        }, 600);
+    }
+
+    // ==================== PARTICLES ====================
+    spawnParticles(element, count) {
+        const container = document.getElementById('particles');
+        if (!container) return;
+
+        const rect = element.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        for (let i = 0; i < count; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+
+            const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+            const distance = 50 + Math.random() * 80;
+            const tx = Math.cos(angle) * distance;
+            const ty = Math.sin(angle) * distance;
+
+            particle.style.cssText = `
+                left: ${centerX}px;
+                top: ${centerY}px;
+                background: ${PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)]};
+                --tx: ${tx}px;
+                --ty: ${ty}px;
+            `;
+
+            container.appendChild(particle);
+            setTimeout(() => particle.remove(), 1000);
+        }
     }
 
     // ==================== SCORING ====================
     addScore(points) {
+        const oldScore = this.score;
         this.score += points;
+
+        // Animate score
+        const scoreEl = document.getElementById('score');
+        if (scoreEl) {
+            scoreEl.classList.remove('pop');
+            void scoreEl.offsetWidth;
+            scoreEl.classList.add('pop');
+        }
+
         this.updateScoreDisplay();
 
         if (this.score > this.bestScore) {
+            if (!this.isNewBest && oldScore <= this.previousBest) {
+                this.isNewBest = true;
+            }
             this.bestScore = this.score;
             this.saveBestScore();
         }
@@ -462,14 +498,17 @@ class BlockBloom {
         if (scoreEl) scoreEl.textContent = this.score.toLocaleString();
         if (bestEl) bestEl.textContent = this.bestScore.toLocaleString();
 
-        // Update combo
         const comboValue = document.getElementById('combo-value');
         const comboBar = document.getElementById('combo-bar');
+        const comboMeter = document.getElementById('combo-meter');
 
         if (comboValue) comboValue.textContent = `x${this.comboMultiplier.toFixed(1)}`;
         if (comboBar) {
             const comboPercent = Math.min(100, (this.comboMultiplier - 1) / 2 * 100);
             comboBar.style.width = `${comboPercent}%`;
+        }
+        if (comboMeter) {
+            comboMeter.classList.toggle('active', this.comboMultiplier > 1);
         }
     }
 
@@ -510,9 +549,24 @@ class BlockBloom {
     updateFlowDisplay() {
         const flowValue = document.getElementById('flow-value');
         const flowBar = document.getElementById('flow-bar');
+        const flowMeter = document.getElementById('flow-meter');
 
         if (flowValue) flowValue.textContent = `${Math.round(this.flowMeter)}%`;
-        if (flowBar) flowBar.style.width = `${this.flowMeter}%`;
+        if (flowBar) {
+            flowBar.style.width = `${this.flowMeter}%`;
+
+            // Update level for visual effects
+            let level = 0;
+            if (this.flowMeter >= 100) level = 4;
+            else if (this.flowMeter >= 75) level = 3;
+            else if (this.flowMeter >= 50) level = 2;
+            else if (this.flowMeter >= 25) level = 1;
+
+            flowBar.setAttribute('data-level', level);
+        }
+        if (flowMeter) {
+            flowMeter.classList.toggle('active', this.flowMeter > 0);
+        }
     }
 
     // ==================== GAME STATE ====================
@@ -540,6 +594,8 @@ class BlockBloom {
         this.flowMeter = 0;
         this.isGameOver = false;
         this.gameStarted = true;
+        this.isNewBest = false;
+        this.previousBest = this.bestScore;
         this.pieces = [null, null, null];
         this.moveHistory = [];
         this.undosRemaining = 3;
@@ -557,7 +613,6 @@ class BlockBloom {
         this.hideModal('menu-modal');
         this.hideModal('gameover-modal');
 
-        // Apply theme
         document.body.classList.toggle('theme-zen', mode === 'zen' || this.zenTheme);
     }
 
@@ -565,18 +620,20 @@ class BlockBloom {
         this.isGameOver = true;
         this.gameStarted = false;
 
-        // Update modal
         const finalScore = document.getElementById('final-score');
-        const modalBest = document.getElementById('modal-best');
         const statLines = document.getElementById('stat-lines');
         const statCombo = document.getElementById('stat-combo');
         const statPieces = document.getElementById('stat-pieces');
+        const newBestBadge = document.getElementById('new-best-badge');
 
         if (finalScore) finalScore.textContent = this.score.toLocaleString();
-        if (modalBest) modalBest.textContent = this.bestScore.toLocaleString();
         if (statLines) statLines.textContent = this.linesCleared;
         if (statCombo) statCombo.textContent = `x${this.maxCombo}`;
         if (statPieces) statPieces.textContent = this.piecesPlaced;
+
+        if (newBestBadge) {
+            newBestBadge.classList.toggle('hidden', !this.isNewBest);
+        }
 
         this.showModal('gameover-modal');
         localStorage.removeItem('blockbloom_save');
@@ -609,6 +666,7 @@ class BlockBloom {
 
         this.undosRemaining--;
         this.render();
+        this.renderPieces();
         this.updatePowerUpButtons();
         this.haptic();
         return true;
@@ -640,14 +698,29 @@ class BlockBloom {
 
         this.saveState();
 
+        const clearedCells = [];
         for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
                 const nx = x + dx;
                 const ny = y + dy;
                 if (nx >= 0 && nx < this.gridSize && ny >= 0 && ny < this.gridSize) {
+                    if (this.grid[ny][nx].filled) {
+                        clearedCells.push({ x: nx, y: ny });
+                    }
                     this.grid[ny][nx] = { filled: false, colorClass: null };
                 }
             }
+        }
+
+        // Spawn particles for bomb
+        const board = document.getElementById('board');
+        if (board) {
+            clearedCells.forEach(cell => {
+                const index = cell.y * this.gridSize + cell.x;
+                if (board.children[index]) {
+                    this.spawnParticles(board.children[index], 3);
+                }
+            });
         }
 
         this.bombsRemaining--;
@@ -668,9 +741,18 @@ class BlockBloom {
         const swapBtn = document.getElementById('swap-btn');
         const bombBtn = document.getElementById('bomb-btn');
 
-        if (undoCount) undoCount.textContent = this.undosRemaining;
-        if (swapCount) swapCount.textContent = this.swapsRemaining;
-        if (bombCount) bombCount.textContent = this.bombsRemaining;
+        if (undoCount) {
+            undoCount.textContent = this.undosRemaining;
+            undoCount.classList.toggle('zero', this.undosRemaining === 0);
+        }
+        if (swapCount) {
+            swapCount.textContent = this.swapsRemaining;
+            swapCount.classList.toggle('zero', this.swapsRemaining === 0);
+        }
+        if (bombCount) {
+            bombCount.textContent = this.bombsRemaining;
+            bombCount.classList.toggle('zero', this.bombsRemaining === 0);
+        }
 
         if (undoBtn) undoBtn.disabled = this.undosRemaining <= 0 || this.moveHistory.length === 0;
         if (swapBtn) swapBtn.disabled = this.swapsRemaining <= 0;
@@ -679,21 +761,16 @@ class BlockBloom {
 
     // ==================== DRAG & DROP ====================
     addPieceDragListeners(slot, index) {
-        // Touch events
         slot.addEventListener('touchstart', (e) => this.startDrag(e, index), { passive: false });
-
-        // Mouse events
         slot.addEventListener('mousedown', (e) => this.startDrag(e, index));
     }
 
     setupEventListeners() {
-        // Global drag events
         document.addEventListener('touchmove', (e) => this.moveDrag(e), { passive: false });
         document.addEventListener('touchend', (e) => this.endDrag(e));
         document.addEventListener('mousemove', (e) => this.moveDrag(e));
         document.addEventListener('mouseup', (e) => this.endDrag(e));
 
-        // Board click for bomb
         document.getElementById('board')?.addEventListener('click', (e) => {
             if (this.isBombMode) {
                 const cell = e.target.closest('.cell');
@@ -703,17 +780,14 @@ class BlockBloom {
             }
         });
 
-        // Power-up buttons
         document.getElementById('undo-btn')?.addEventListener('click', () => this.undo());
         document.getElementById('swap-btn')?.addEventListener('click', () => this.swapPieces());
         document.getElementById('bomb-btn')?.addEventListener('click', () => this.activateBomb());
 
-        // Menu button
         document.getElementById('menu-btn')?.addEventListener('click', () => {
             this.showModal('menu-modal');
         });
 
-        // Mode selection
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
@@ -722,24 +796,20 @@ class BlockBloom {
             });
         });
 
-        // Start game button
         document.getElementById('start-game-btn')?.addEventListener('click', () => {
             const selectedMode = document.querySelector('.mode-btn.selected')?.dataset.mode || 'classic';
             this.startGame(selectedMode);
         });
 
-        // Play again
         document.getElementById('play-again-btn')?.addEventListener('click', () => {
             this.startGame(this.gameMode);
         });
 
-        // Menu from game over
         document.getElementById('menu-from-gameover')?.addEventListener('click', () => {
             this.hideModal('gameover-modal');
             this.showModal('menu-modal');
         });
 
-        // Settings
         document.getElementById('settings-btn')?.addEventListener('click', () => {
             this.hideModal('menu-modal');
             this.showModal('settings-modal');
@@ -750,7 +820,6 @@ class BlockBloom {
             this.showModal('menu-modal');
         });
 
-        // Settings toggles
         document.getElementById('toggle-sound')?.addEventListener('click', (e) => {
             e.currentTarget.classList.toggle('active');
             this.soundEnabled = e.currentTarget.classList.contains('active');
@@ -777,7 +846,6 @@ class BlockBloom {
             this.saveSettings();
         });
 
-        // Tutorial
         document.getElementById('tutorial-next-btn')?.addEventListener('click', () => {
             this.nextTutorialStep();
         });
@@ -802,6 +870,7 @@ class BlockBloom {
         if (slot) slot.classList.add('dragging');
 
         this.createFloatingPiece(e);
+        this.haptic();
     }
 
     createFloatingPiece(e) {
@@ -815,22 +884,23 @@ class BlockBloom {
             pointer-events: none;
             z-index: 1000;
             display: grid;
-            gap: 2px;
-            grid-template-columns: repeat(${piece.shape[0].length}, 28px);
-            transform: translate(-50%, -100%) translateY(-20px);
+            gap: 3px;
+            grid-template-columns: repeat(${piece.shape[0].length}, 30px);
+            transform: translate(-50%, -100%) translateY(-30px);
+            filter: drop-shadow(0 8px 20px rgba(0,0,0,0.4));
         `;
 
         for (let y = 0; y < piece.shape.length; y++) {
             for (let x = 0; x < piece.shape[y].length; x++) {
                 const cell = document.createElement('div');
                 cell.style.cssText = `
-                    width: 28px;
-                    height: 28px;
-                    border-radius: 4px;
+                    width: 30px;
+                    height: 30px;
+                    border-radius: 5px;
                 `;
                 if (piece.shape[y][x] === 1) {
                     cell.classList.add(piece.colorClass);
-                    cell.style.boxShadow = 'inset 0 2px 4px rgba(255,255,255,0.25)';
+                    cell.style.boxShadow = 'inset 0 2px 4px rgba(255,255,255,0.35)';
                 }
                 floater.appendChild(cell);
             }
@@ -857,7 +927,6 @@ class BlockBloom {
         e.preventDefault();
         this.updateFloatingPosition(e);
 
-        // Calculate grid position
         const board = document.getElementById('board');
         if (!board) return;
 
@@ -867,7 +936,7 @@ class BlockBloom {
 
         const cellSize = rect.width / this.gridSize;
         const x = Math.floor((clientX - rect.left) / cellSize);
-        const y = Math.floor((clientY - rect.top - 50) / cellSize); // Offset for finger
+        const y = Math.floor((clientY - rect.top - 60) / cellSize);
 
         if (x >= 0 && x < this.gridSize && y >= 0 && y < this.gridSize) {
             this.ghostPosition = { x, y };
@@ -889,7 +958,6 @@ class BlockBloom {
         const slot = document.querySelector(`.piece-slot[data-index="${this.draggedPieceIndex}"]`);
         if (slot) slot.classList.remove('dragging');
 
-        // Try to place piece
         if (this.ghostPosition) {
             this.placePiece(this.draggedPieceIndex, this.ghostPosition.x, this.ghostPosition.y);
         }
@@ -971,6 +1039,7 @@ class BlockBloom {
 
     loadBestScore() {
         this.bestScore = parseInt(localStorage.getItem('blockbloom_best') || '0');
+        this.previousBest = this.bestScore;
     }
 
     saveSettings() {
@@ -991,7 +1060,6 @@ class BlockBloom {
             this.colorblindMode = data.colorblindMode ?? false;
             this.zenTheme = data.zenTheme ?? false;
 
-            // Apply to toggles
             if (this.soundEnabled) document.getElementById('toggle-sound')?.classList.add('active');
             else document.getElementById('toggle-sound')?.classList.remove('active');
 
@@ -1026,9 +1094,9 @@ class BlockBloom {
 
     updateTutorialStep() {
         const steps = [
-            { title: 'Welcome!', text: 'Drag blocks from the tray and drop them onto the 10x10 grid.' },
+            { title: 'Welcome!', text: 'Drag blocks from the tray and drop them onto the 10×10 grid.' },
             { title: 'Clear Lines', text: 'Fill a complete row or column to clear it and score points!' },
-            { title: 'Build Combos', text: 'Clear lines consecutively to build your combo multiplier for higher scores!' }
+            { title: 'Build Combos', text: 'Clear lines consecutively to build your combo multiplier!' }
         ];
 
         const step = steps[this.tutorialStep];
@@ -1056,14 +1124,13 @@ class BlockBloom {
     }
 }
 
-// ==================== INITIALIZE ====================
+// ==================== INIT ====================
 let game;
 
 document.addEventListener('DOMContentLoaded', () => {
     game = new BlockBloom();
 });
 
-// Service Worker
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
