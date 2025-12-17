@@ -3,8 +3,7 @@
   "appName": "Block Bloom",
   "webDir": "www",
   "ios": {
-    "contentInset": "always",
-    "scrollEnabled": false,
+    "contentInset": "automatic",
     "backgroundColor": "#050510",
     "preferredContentMode": "mobile",
     "allowsLinkPreview": false

@@ -206,8 +206,6 @@
            ===================================================== */
         html, body {
             height: 100%;
-            min-height: 100vh;
-            min-height: -webkit-fill-available;
             overflow: hidden;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg-deep);
@@ -237,13 +235,9 @@
             display: flex;
             flex-direction: column;
             height: 100%;
-            min-height: 100vh;
-            min-height: -webkit-fill-available;
             max-width: 500px;
             margin: 0 auto;
-            padding: max(env(safe-area-inset-top), 12px) 16px max(env(safe-area-inset-bottom), 12px);
-            padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
-            background: var(--bg-deep);
+            padding: env(safe-area-inset-top, 12px) 16px env(safe-area-inset-bottom, 12px);
         }
 
         /* =====================================================
