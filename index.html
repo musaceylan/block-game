@@ -241,9 +241,10 @@
             z-index: 1;
             display: flex;
             flex-direction: column;
+            justify-content: space-between;
             max-width: 500px;
             margin: 0 auto;
-            padding: calc(env(safe-area-inset-top, 0px) + 8px) 16px calc(env(safe-area-inset-bottom, 0px) + 8px);
+            padding: env(safe-area-inset-top, 8px) 16px env(safe-area-inset-bottom, 8px);
             box-sizing: border-box;
             overflow: hidden;
         }
@@ -255,8 +256,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: var(--space-sm) 0;
-            flex-shrink: 0;
+            padding: 4px 0;
+            flex: 0 0 auto;
         }
 
         .header-left {
@@ -367,9 +368,9 @@
            ===================================================== */
         .meters {
             display: flex;
-            gap: var(--space-md);
-            padding: var(--space-sm) 0;
-            flex-shrink: 0;
+            gap: var(--space-sm);
+            padding: 4px 0;
+            flex: 0 0 auto;
         }
 
         .meter {
@@ -471,11 +472,10 @@
            GAME BOARD - The Star
            ===================================================== */
         .board-wrapper {
-            flex: 1;
+            flex: 1 1 auto;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: var(--space-sm) 0;
             min-height: 0;
             overflow: hidden;
         }
@@ -746,10 +746,9 @@
             background: var(--bg-elevated);
             border: 1px solid var(--cell-border);
             border-radius: var(--radius-xl);
-            padding: var(--space-md);
-            margin: var(--space-sm) 0;
-            min-height: 110px;
-            flex-shrink: 0;
+            padding: var(--space-sm);
+            min-height: 90px;
+            flex: 0 0 auto;
         }
 
         .piece-slot {
@@ -851,8 +850,8 @@
             display: flex;
             justify-content: center;
             gap: var(--space-md);
-            padding: var(--space-sm) 0 var(--space-md);
-            flex-shrink: 0;
+            padding: 4px 0;
+            flex: 0 0 auto;
         }
 
         .powerup-btn {
@@ -1899,6 +1898,6 @@
         </div>
     </div>
 
-    <script src="game.js?v=7"></script>
+    <script src="game.js?v=8"></script>
 </body>
 </html>
