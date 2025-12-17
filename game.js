@@ -4,39 +4,6 @@
  * iOS Native App Version
  */
 
-// Import Capacitor plugins (will be available when running in native app)
-let Haptics = null;
-let StatusBar = null;
-let SplashScreen = null;
-
-// Initialize Capacitor plugins when available
-async function initCapacitor() {
-    try {
-        if (window.Capacitor) {
-            const { Haptics: H } = await import('@capacitor/haptics');
-            const { StatusBar: SB } = await import('@capacitor/status-bar');
-            const { SplashScreen: SS } = await import('@capacitor/splash-screen');
-            Haptics = H;
-            StatusBar = SB;
-            SplashScreen = SS;
-
-            // Hide splash screen after game loads
-            await SplashScreen.hide();
-
-            // Configure status bar for iOS
-            await StatusBar.setStyle({ style: 'DARK' });
-            await StatusBar.setBackgroundColor({ color: '#050510' });
-
-            console.log('Capacitor plugins initialized');
-        }
-    } catch (e) {
-        console.log('Running in browser mode');
-    }
-}
-
-// Initialize on load
-document.addEventListener('DOMContentLoaded', initCapacitor);
-
 // ==================== PIECE DEFINITIONS ====================
 const PIECES = {
     dot: { shape: [[1]], weight: 5 },
@@ -1389,33 +1356,8 @@ class BlockBloom {
     }
 
     // ==================== HAPTICS ====================
-    async haptic(type = 'light') {
-        if (!this.hapticEnabled) return;
-
-        // Use native Capacitor haptics if available (iOS)
-        if (Haptics) {
-            try {
-                const hapticMap = {
-                    light: () => Haptics.impact({ style: 'light' }),
-                    click: () => Haptics.impact({ style: 'light' }),
-                    place: () => Haptics.impact({ style: 'medium' }),
-                    lineClear: () => Haptics.notification({ type: 'success' }),
-                    combo: () => Haptics.notification({ type: 'success' }),
-                    error: () => Haptics.notification({ type: 'error' }),
-                    gameOver: () => Haptics.notification({ type: 'warning' }),
-                    milestone: () => Haptics.notification({ type: 'success' })
-                };
-
-                const hapticFn = hapticMap[type] || hapticMap.light;
-                await hapticFn();
-                return;
-            } catch (e) {
-                console.log('Haptic error:', e);
-            }
-        }
-
-        // Fallback to browser vibration API
-        if (!navigator.vibrate) return;
+    haptic(type = 'light') {
+        if (!this.hapticEnabled || !navigator.vibrate) return;
 
         const patterns = {
             light: [10],
