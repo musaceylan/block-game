@@ -4,11 +4,11 @@
   "description": "Premium block puzzle game with satisfying gameplay",
   "main": "game.js",
   "scripts": {
-    "build": "echo 'No build step needed - static files'",
-    "ios:add": "npx cap add ios",
-    "ios:sync": "npx cap sync ios",
+    "build": "mkdir -p www && cp index.html game.js manifest.json sw.js www/ && cp -r icons www/",
+    "ios:add": "npm run build && npx cap add ios",
+    "ios:sync": "npm run build && npx cap sync ios",
     "ios:open": "npx cap open ios",
-    "ios:build": "npx cap sync ios && npx cap open ios"
+    "ios:build": "npm run build && npx cap sync ios && npx cap open ios"
   },
   "repository": {
     "type": "git",

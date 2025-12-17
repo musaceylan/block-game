@@ -1,8 +1,7 @@
 {
   "appId": "com.ceylan.blockbloom",
   "appName": "Block Bloom",
-  "webDir": ".",
-  "bundledWebRuntime": false,
+  "webDir": "www",
   "ios": {
     "contentInset": "automatic",
     "backgroundColor": "#050510",
