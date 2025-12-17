@@ -546,32 +546,7 @@
             50% { opacity: 0.6; transform: scale(1.02); }
         }
 
-        /* Line Clear Animation - JUICY! */
-        .cell.clearing {
-            animation: cellClear 0.6s var(--ease-out-expo) forwards;
-        }
-
-        @keyframes cellClear {
-            0% {
-                transform: scale(1);
-                opacity: 1;
-                filter: brightness(1);
-            }
-            20% {
-                transform: scale(1.3);
-                filter: brightness(2.5);
-                box-shadow: 0 0 30px currentColor;
-            }
-            40% {
-                transform: scale(1.1);
-                filter: brightness(2);
-            }
-            100% {
-                transform: scale(0) rotate(180deg);
-                opacity: 0;
-                filter: brightness(0);
-            }
-        }
+        /* Line Clear Animation - Moved to enhanced version below */
 
         /* Board Flash */
         .board.line-clearing {
@@ -594,6 +569,161 @@
             40% { transform: translateX(3px); }
             60% { transform: translateX(-2px); }
             80% { transform: translateX(2px); }
+        }
+
+        /* =====================================================
+           PLACEMENT ANIMATION - Juicy bounce effect
+           ===================================================== */
+        .cell.placing {
+            animation: cellPlace 0.4s var(--ease-out-back) forwards;
+        }
+
+        @keyframes cellPlace {
+            0% {
+                transform: scale(0) rotate(-10deg);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.3) rotate(3deg);
+                opacity: 1;
+            }
+            70% {
+                transform: scale(0.9) rotate(-2deg);
+            }
+            100% {
+                transform: scale(1) rotate(0);
+                opacity: 1;
+            }
+        }
+
+        /* Placement Ripple Effect */
+        .placement-ripple {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: transparent;
+            border: 3px solid var(--accent-primary);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 30;
+            animation: rippleExpand 0.6s var(--ease-out-expo) forwards;
+        }
+
+        @keyframes rippleExpand {
+            0% {
+                width: 10px;
+                height: 10px;
+                opacity: 0.8;
+                border-width: 3px;
+            }
+            100% {
+                width: 60px;
+                height: 60px;
+                opacity: 0;
+                border-width: 1px;
+            }
+        }
+
+        /* =====================================================
+           LINE CLEAR EFFECTS - Epic clear animations
+           ===================================================== */
+        .line-flash {
+            position: fixed;
+            pointer-events: none;
+            z-index: 35;
+            border-radius: 4px;
+            animation: lineFlash 0.6s var(--ease-out-expo) forwards;
+        }
+
+        .line-flash.horizontal {
+            background: linear-gradient(90deg,
+                transparent 0%,
+                var(--accent-primary) 20%,
+                white 50%,
+                var(--accent-primary) 80%,
+                transparent 100%);
+        }
+
+        .line-flash.vertical {
+            background: linear-gradient(180deg,
+                transparent 0%,
+                var(--accent-primary) 20%,
+                white 50%,
+                var(--accent-primary) 80%,
+                transparent 100%);
+        }
+
+        @keyframes lineFlash {
+            0% {
+                opacity: 0;
+                filter: blur(4px);
+            }
+            20% {
+                opacity: 1;
+                filter: blur(0);
+            }
+            100% {
+                opacity: 0;
+                filter: blur(8px);
+            }
+        }
+
+        /* Explosion Ring for each cell */
+        .explosion-ring {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: transparent;
+            border: 2px solid var(--success);
+            box-shadow: 0 0 10px var(--success-glow);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 32;
+            animation: explosionRing 0.5s var(--ease-out-expo) forwards;
+        }
+
+        @keyframes explosionRing {
+            0% {
+                width: 5px;
+                height: 5px;
+                opacity: 1;
+                border-width: 3px;
+            }
+            100% {
+                width: 40px;
+                height: 40px;
+                opacity: 0;
+                border-width: 1px;
+            }
+        }
+
+        /* Enhanced cell clearing animation */
+        .cell.clearing {
+            animation: cellClearEnhanced 0.6s var(--ease-out-expo) forwards;
+        }
+
+        @keyframes cellClearEnhanced {
+            0% {
+                transform: scale(1) rotate(0);
+                opacity: 1;
+                filter: brightness(1);
+            }
+            15% {
+                transform: scale(1.4) rotate(5deg);
+                filter: brightness(3);
+                box-shadow: 0 0 30px currentColor, 0 0 60px var(--accent-primary);
+            }
+            30% {
+                transform: scale(1.2) rotate(-3deg);
+                filter: brightness(2);
+            }
+            100% {
+                transform: scale(0) rotate(180deg);
+                opacity: 0;
+                filter: brightness(0);
+            }
         }
 
         /* =====================================================
@@ -730,7 +860,7 @@
             cursor: pointer;
             transition: all 0.2s var(--ease-out-expo);
             position: relative;
-            overflow: hidden;
+            overflow: visible;
         }
 
         .powerup-btn::before {
@@ -1262,6 +1392,316 @@
             .logo { font-size: 18px; }
         }
 
+        /* =====================================================
+           NEW JUICE EFFECTS - Ultimate Edition
+           ===================================================== */
+
+        /* Floating Score Popup */
+        .floating-score {
+            position: fixed;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--success);
+            text-shadow: 0 0 15px var(--success-glow), 0 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+            z-index: 45;
+            transform: translateX(-50%);
+            opacity: 0;
+        }
+
+        .floating-score.animate {
+            animation: floatScore 1s var(--ease-out-expo) forwards;
+        }
+
+        @keyframes floatScore {
+            0% {
+                opacity: 0;
+                transform: translateX(-50%) translateY(0) scale(0.5);
+            }
+            20% {
+                opacity: 1;
+                transform: translateX(-50%) translateY(-10px) scale(1.2);
+            }
+            100% {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-60px) scale(0.8);
+            }
+        }
+
+        /* Hit Pause Effect */
+        body.hit-pause .game-container {
+            filter: brightness(1.1);
+        }
+
+        body.hit-pause .board {
+            transform: scale(1.01);
+        }
+
+        /* Breathing Animation for Piece Slots */
+        .piece-slot.breathing {
+            animation: breathe 1s ease-in-out;
+        }
+
+        @keyframes breathe {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.03);
+                box-shadow: 0 0 20px var(--accent-subtle);
+            }
+        }
+
+        /* Squash Effect on Pickup */
+        .piece-slot.squash-pickup .piece-grid {
+            animation: squashPickup 0.15s ease-out;
+        }
+
+        @keyframes squashPickup {
+            0% {
+                transform: scale(1, 1);
+            }
+            50% {
+                transform: scale(0.85, 1.15);
+            }
+            100% {
+                transform: scale(1, 1);
+            }
+        }
+
+        /* Bounce Back Animation */
+        .piece-slot.bounce-back .piece-grid {
+            animation: bounceBack 0.3s var(--ease-out-back);
+        }
+
+        @keyframes bounceBack {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Drag Trail */
+        .drag-trail {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            opacity: 0.4;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            animation: trailFade 0.3s ease-out forwards;
+        }
+
+        @keyframes trailFade {
+            0% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.4;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(0.3);
+                opacity: 0;
+            }
+        }
+
+        /* Anticipation Glow Before Clear */
+        .cell.anticipation {
+            animation: anticipationGlow 0.08s ease-out forwards;
+        }
+
+        @keyframes anticipationGlow {
+            0% {
+                filter: brightness(1);
+                box-shadow: none;
+            }
+            100% {
+                filter: brightness(1.5);
+                box-shadow: 0 0 15px currentColor;
+            }
+        }
+
+        /* Milestone Celebration */
+        .milestone-celebration {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 60;
+            animation: milestoneAppear 2s var(--ease-out-expo) forwards;
+        }
+
+        .milestone-icon {
+            font-size: 80px;
+            animation: milestoneIconBounce 0.5s var(--ease-out-back);
+        }
+
+        .milestone-text {
+            font-size: 36px;
+            font-weight: 900;
+            color: var(--warning);
+            text-shadow: 0 0 30px rgba(255, 184, 0, 0.8);
+            margin-top: var(--space-sm);
+        }
+
+        @keyframes milestoneAppear {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            15% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+            25% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+            75% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(1.1) translateY(-30px);
+            }
+        }
+
+        @keyframes milestoneIconBounce {
+            0% {
+                transform: scale(0) rotate(-20deg);
+            }
+            60% {
+                transform: scale(1.3) rotate(10deg);
+            }
+            100% {
+                transform: scale(1) rotate(0);
+            }
+        }
+
+        /* New Best Notification */
+        .new-best-notification {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--warning);
+            text-shadow: 0 0 30px rgba(255, 184, 0, 0.8);
+            z-index: 55;
+            animation: newBestAppear 2s var(--ease-out-expo) forwards;
+        }
+
+        @keyframes newBestAppear {
+            0% {
+                opacity: 0;
+                transform: translateX(-50%) scale(0.5) translateY(20px);
+            }
+            20% {
+                opacity: 1;
+                transform: translateX(-50%) scale(1.3) translateY(0);
+            }
+            30% {
+                transform: translateX(-50%) scale(1) translateY(0);
+            }
+            70% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                transform: translateX(-50%) scale(1) translateY(-20px);
+            }
+        }
+
+        /* Confetti Particles */
+        .confetti {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            pointer-events: none;
+            animation: confettiFall 1.5s ease-out forwards;
+        }
+
+        @keyframes confettiFall {
+            0% {
+                transform: translate(0, 0) rotate(0deg) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty)) rotate(var(--rotation)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        /* Background Pulse on Line Clear */
+        .game-container.bg-pulse::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, var(--accent-glow) 0%, transparent 70%);
+            animation: bgPulse 0.5s ease-out forwards;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        @keyframes bgPulse {
+            0% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            30% {
+                opacity: calc(0.2 * var(--pulse-intensity, 1));
+            }
+            100% {
+                opacity: 0;
+                transform: scale(1.5);
+            }
+        }
+
+        /* Enhanced Screen Shake with Intensity */
+        .board.shake {
+            animation: boardShakeIntense 0.3s ease-out;
+        }
+
+        @keyframes boardShakeIntense {
+            0%, 100% { transform: translate(0, 0) rotate(0); }
+            10% { transform: translate(calc(-4px * var(--shake-intensity, 1)), calc(-2px * var(--shake-intensity, 1))) rotate(calc(-0.5deg * var(--shake-intensity, 1))); }
+            20% { transform: translate(calc(4px * var(--shake-intensity, 1)), calc(2px * var(--shake-intensity, 1))) rotate(calc(0.5deg * var(--shake-intensity, 1))); }
+            30% { transform: translate(calc(-3px * var(--shake-intensity, 1)), calc(-1px * var(--shake-intensity, 1))) rotate(calc(-0.3deg * var(--shake-intensity, 1))); }
+            40% { transform: translate(calc(3px * var(--shake-intensity, 1)), calc(1px * var(--shake-intensity, 1))) rotate(calc(0.3deg * var(--shake-intensity, 1))); }
+            50% { transform: translate(calc(-2px * var(--shake-intensity, 1)), 0) rotate(0); }
+            60% { transform: translate(calc(2px * var(--shake-intensity, 1)), 0) rotate(0); }
+            70% { transform: translate(calc(-1px * var(--shake-intensity, 1)), 0); }
+            80% { transform: translate(calc(1px * var(--shake-intensity, 1)), 0); }
+        }
+
+        /* Elastic Easing for Special Animations */
+        @keyframes elasticPop {
+            0% { transform: scale(0); }
+            55% { transform: scale(1.1); }
+            70% { transform: scale(0.95); }
+            85% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        /* Smooth Score Counter Glow */
+        #score {
+            transition: text-shadow 0.3s ease;
+        }
+
+        #score.pop {
+            text-shadow: 0 0 30px var(--accent-glow), 0 0 60px var(--accent-glow);
+        }
+
         /* Reduce motion */
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
@@ -1449,6 +1889,6 @@
         </div>
     </div>
 
-    <script src="game.js"></script>
+    <script src="game.js?v=5"></script>
 </body>
 </html>

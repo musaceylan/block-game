@@ -1,0 +1,40 @@
+{
+  "name": "block-bloom",
+  "version": "1.0.0",
+  "description": "Premium block puzzle game with satisfying gameplay",
+  "main": "game.js",
+  "scripts": {
+    "build": "echo 'No build step needed - static files'",
+    "ios:add": "npx cap add ios",
+    "ios:sync": "npx cap sync ios",
+    "ios:open": "npx cap open ios",
+    "ios:build": "npx cap sync ios && npx cap open ios"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/musaceylan/block-game.git"
+  },
+  "keywords": [
+    "puzzle",
+    "game",
+    "block",
+    "tetris",
+    "mobile"
+  ],
+  "author": "Musa Ceylan",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/musaceylan/block-game/issues"
+  },
+  "homepage": "https://block.ceylan.world",
+  "dependencies": {
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/haptics": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/splash-screen": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0"
+  }
+}
