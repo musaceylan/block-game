@@ -11,16 +11,17 @@ workflows:
       node: 20
       xcode: latest
       cocoapods: default
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.ceylan.blockbloom
-        provisioning_profiles:
-          - BlockBloom AppStore
-        certificates:
-          - distribution
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
+
+    ios_signing:
+      distribution_type: app_store
+      bundle_identifier: com.ceylan.blockbloom
+      provisioning_profiles:
+        - BlockBloom AppStore
+      certificates:
+        - distribution
 
     scripts:
       - name: Install dependencies
