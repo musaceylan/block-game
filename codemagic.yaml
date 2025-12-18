@@ -4,17 +4,14 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
 
-    integrations:
-      app_store_connect: Codemagic
-
     environment:
       node: 20
       xcode: latest
       cocoapods: default
-      groups:
-        - app_store_credentials
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.ceylan.blockbloom
       vars:
-        BUNDLE_ID: "com.ceylan.blockbloom"
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
 
@@ -43,13 +40,6 @@ workflows:
         script: |
           cd ios/App && pod install
 
-      - name: Set up code signing
-        script: |
-          keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
-          keychain add-certificates
-          xcode-project use-profiles
-
       - name: Build iOS app
         script: |
           xcode-project build-ipa \
@@ -59,10 +49,11 @@ workflows:
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-      - ios/App/*.xcresult
 
     publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-        submit_to_app_store: false
+      email:
+        recipients:
+          - musa@ceylan.world
+        notify:
+          success: true
+          failure: true
