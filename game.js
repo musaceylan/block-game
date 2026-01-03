@@ -1918,12 +1918,13 @@ class BlockBloom {
             ? Math.round(this.stats.totalScore / this.stats.gamesPlayed)
             : 0;
 
-        document.getElementById('stats-games-played').textContent = this.stats.gamesPlayed.toLocaleString();
-        document.getElementById('stats-high-score').textContent = this.stats.highScore.toLocaleString();
-        document.getElementById('stats-total-lines').textContent = this.stats.totalLinesEver.toLocaleString();
-        document.getElementById('stats-total-pieces').textContent = this.stats.totalPiecesEver.toLocaleString();
-        document.getElementById('stats-best-combo').textContent = `x${this.stats.bestComboEver}`;
-        document.getElementById('stats-avg-score').textContent = avgScore.toLocaleString();
+        const el = (id) => document.getElementById(id);
+        if (el('stats-games-played')) el('stats-games-played').textContent = this.stats.gamesPlayed.toLocaleString();
+        if (el('stats-high-score')) el('stats-high-score').textContent = this.stats.highScore.toLocaleString();
+        if (el('stats-total-lines')) el('stats-total-lines').textContent = this.stats.totalLinesEver.toLocaleString();
+        if (el('stats-total-pieces')) el('stats-total-pieces').textContent = this.stats.totalPiecesEver.toLocaleString();
+        if (el('stats-best-combo')) el('stats-best-combo').textContent = `x${this.stats.bestComboEver}`;
+        if (el('stats-avg-score')) el('stats-avg-score').textContent = avgScore.toLocaleString();
 
         this.showModal('stats-modal');
     }
