@@ -892,17 +892,22 @@ class BlockBloom {
     }
 
     clearLinesAnimated(rows, cols) {
-        const cellsToClear = new Set();
+        const cellsToClear = [];
 
-        // Collect all cells to clear
+        // Collect row cells with stagger delay (10ms per cell for snappy wave)
         for (let y of rows) {
             for (let x = 0; x < this.gridSize; x++) {
-                cellsToClear.add(`${x},${y}`);
+                cellsToClear.push({ x, y, delay: x * 10 });
             }
         }
+
+        // Collect column cells
         for (let x of cols) {
             for (let y = 0; y < this.gridSize; y++) {
-                cellsToClear.add(`${x},${y}`);
+                const exists = cellsToClear.some(c => c.x === x && c.y === y);
+                if (!exists) {
+                    cellsToClear.push({ x, y, delay: y * 10 });
+                }
             }
         }
 
@@ -910,68 +915,84 @@ class BlockBloom {
         if (!board) return;
 
         board.classList.add('line-clearing');
-        setTimeout(() => board.classList.remove('line-clearing'), 150);
+        setTimeout(() => board.classList.remove('line-clearing'), 200);
 
         const cells = board.querySelectorAll('.cell');
 
-        // Quick flash
-        this.createLineFlash(rows, cols);
-
-        // All cells clear simultaneously - no stagger for instant feel
-        cellsToClear.forEach(coord => {
-            const [x, y] = coord.split(',').map(Number);
+        // Phase 1: Instant bright glow on all cells (50ms)
+        cellsToClear.forEach(({ x, y }) => {
             const index = y * this.gridSize + x;
             if (cells[index]) {
-                cells[index].classList.add('clearing');
+                cells[index].classList.add('line-complete');
             }
         });
 
-        // Spawn particles once per line, not per cell
-        if (rows.length > 0 || cols.length > 0) {
-            const rect = board.getBoundingClientRect();
-            const cellSize = rect.width / this.gridSize;
+        // Phase 2: Flash the lines (at 50ms)
+        setTimeout(() => {
+            this.createLineFlash(rows, cols);
+        }, 50);
+
+        // Phase 3: Clear cells with quick wave (at 80ms)
+        setTimeout(() => {
+            cellsToClear.forEach(({ x, y, delay }) => {
+                const index = y * this.gridSize + x;
+                if (cells[index]) {
+                    setTimeout(() => {
+                        cells[index].classList.remove('line-complete');
+                        cells[index].classList.add('clearing');
+                    }, delay);
+                }
+            });
+        }, 80);
+
+        // Spawn a few particles per line for visual pop
+        const rect = board.getBoundingClientRect();
+        const cellSize = rect.width / this.gridSize;
+        setTimeout(() => {
             rows.forEach(y => {
-                this.spawnLineParticles(rect.left + rect.width / 2, rect.top + 8 + y * cellSize + cellSize / 2, true);
+                for (let i = 0; i < 8; i++) {
+                    this.spawnClearParticle(
+                        rect.left + 8 + Math.random() * (rect.width - 16),
+                        rect.top + 8 + y * cellSize + cellSize / 2
+                    );
+                }
             });
             cols.forEach(x => {
-                this.spawnLineParticles(rect.left + 8 + x * cellSize + cellSize / 2, rect.top + rect.height / 2, false);
+                for (let i = 0; i < 8; i++) {
+                    this.spawnClearParticle(
+                        rect.left + 8 + x * cellSize + cellSize / 2,
+                        rect.top + 8 + Math.random() * (rect.height - 16)
+                    );
+                }
             });
-        }
+        }, 100);
 
-        // Cleanup quickly
+        // Cleanup after animation completes
+        const maxDelay = cellsToClear.length > 0 ? Math.max(...cellsToClear.map(c => c.delay)) : 0;
         setTimeout(() => {
-            cellsToClear.forEach(coord => {
-                const [x, y] = coord.split(',').map(Number);
+            cellsToClear.forEach(({ x, y }) => {
                 this.grid[y][x] = { filled: false, colorClass: null };
             });
             this.renderGrid();
-        }, 180);
+        }, 80 + maxDelay + 220);
     }
 
-    spawnLineParticles(centerX, centerY, isHorizontal) {
+    spawnClearParticle(x, y) {
         const container = document.getElementById('particles');
         if (!container) return;
 
-        const count = 6;
-        for (let i = 0; i < count; i++) {
-            const particle = document.createElement('div');
-            particle.className = 'particle';
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = `${x}px`;
+        particle.style.top = `${y}px`;
+        particle.style.setProperty('--dx', `${(Math.random() - 0.5) * 80}px`);
+        particle.style.setProperty('--dy', `${(Math.random() - 0.5) * 80 - 20}px`);
 
-            const spread = isHorizontal ? 80 : 40;
-            const perpSpread = isHorizontal ? 20 : 80;
+        const colors = ['#4ade80', '#60a5fa', '#f472b6', '#facc15', '#a78bfa'];
+        particle.style.background = colors[Math.floor(Math.random() * colors.length)];
 
-            const offsetX = (Math.random() - 0.5) * spread;
-            const offsetY = (Math.random() - 0.5) * perpSpread;
-
-            particle.style.left = `${centerX + offsetX}px`;
-            particle.style.top = `${centerY + offsetY}px`;
-            particle.style.setProperty('--dx', `${(Math.random() - 0.5) * 60}px`);
-            particle.style.setProperty('--dy', `${(Math.random() - 0.5) * 60}px`);
-            particle.style.background = `hsl(${Math.random() * 60 + 180}, 80%, 60%)`;
-
-            container.appendChild(particle);
-            setTimeout(() => particle.remove(), 400);
-        }
+        container.appendChild(particle);
+        setTimeout(() => particle.remove(), 500);
     }
 
     createLineFlash(rows, cols) {
@@ -990,22 +1011,22 @@ class BlockBloom {
             flash.style.width = `${rect.width - padding * 2}px`;
             flash.style.height = `${cellSize}px`;
             document.body.appendChild(flash);
-            setTimeout(() => flash.remove(), 150);
+            setTimeout(() => flash.remove(), 200);
         });
 
         cols.forEach(x => {
             const flash = document.createElement('div');
-            flash.className = 'line-flash';
+            flash.className = 'line-flash vertical';
             flash.style.left = `${rect.left + padding + x * cellSize}px`;
             flash.style.top = `${rect.top + padding}px`;
             flash.style.width = `${cellSize}px`;
             flash.style.height = `${rect.height - padding * 2}px`;
             document.body.appendChild(flash);
-            setTimeout(() => flash.remove(), 150);
+            setTimeout(() => flash.remove(), 200);
         });
     }
 
-    // Keep for backwards compatibility but make it a no-op
+    // Keep for backwards compatibility
     createExplosionRing(element) {}
     createExplosionRings(element) {}
 
