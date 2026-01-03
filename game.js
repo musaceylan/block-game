@@ -893,98 +893,62 @@ class BlockBloom {
 
     clearLinesAnimated(rows, cols) {
         const cellsToClear = new Set();
-        const rowCells = []; // Cells organized by row with position info
-        const colCells = []; // Cells organized by column with position info
+        const allCells = [];
 
-        // Collect row cells with wave delay (left to right)
+        // Collect row cells with fast wave delay (15ms per cell)
         for (let y of rows) {
             for (let x = 0; x < this.gridSize; x++) {
                 const key = `${x},${y}`;
                 if (!cellsToClear.has(key)) {
                     cellsToClear.add(key);
-                    rowCells.push({ x, y, waveDelay: x * 30, type: 'row' });
+                    allCells.push({ x, y, waveDelay: x * 15 });
                 }
             }
         }
 
-        // Collect column cells with wave delay (top to bottom)
+        // Collect column cells with fast wave delay
         for (let x of cols) {
             for (let y = 0; y < this.gridSize; y++) {
                 const key = `${x},${y}`;
                 if (!cellsToClear.has(key)) {
                     cellsToClear.add(key);
-                    colCells.push({ x, y, waveDelay: y * 30, type: 'col' });
+                    allCells.push({ x, y, waveDelay: y * 15 });
                 }
             }
         }
 
-        const allCells = [...rowCells, ...colCells];
         const board = document.getElementById('board');
 
         if (board) {
             board.classList.add('line-clearing');
-            setTimeout(() => board.classList.remove('line-clearing'), 600);
+            setTimeout(() => board.classList.remove('line-clearing'), 250);
 
             const cells = board.querySelectorAll('.cell');
 
-            // Phase 1: Wave highlight travels through cells (anticipation)
+            // Flash and clear in one smooth wave
+            this.createLineFlash(rows, cols);
+
             allCells.forEach(({ x, y, waveDelay }) => {
                 const index = y * this.gridSize + x;
                 if (cells[index]) {
                     setTimeout(() => {
-                        cells[index].classList.add('wave-highlight');
+                        cells[index].classList.add('clearing');
+                        this.spawnParticles(cells[index], 4);
+                        this.createExplosionRings(cells[index]);
                     }, waveDelay);
                 }
             });
-
-            // Phase 2: All cells glow together (building tension)
-            const maxWaveDelay = Math.max(...allCells.map(c => c.waveDelay));
-            setTimeout(() => {
-                allCells.forEach(({ x, y }) => {
-                    const index = y * this.gridSize + x;
-                    if (cells[index]) {
-                        cells[index].classList.remove('wave-highlight');
-                        cells[index].classList.add('anticipation');
-                    }
-                });
-            }, maxWaveDelay + 100);
-
-            // Phase 3: Line flash sweeps through
-            setTimeout(() => {
-                this.createLineFlash(rows, cols);
-            }, maxWaveDelay + 200);
-
-            // Phase 4: Cells clear with staggered wave effect
-            setTimeout(() => {
-                allCells.forEach(({ x, y, waveDelay }) => {
-                    const index = y * this.gridSize + x;
-                    if (cells[index]) {
-                        const clearDelay = waveDelay * 0.6; // Faster wave for clearing
-                        setTimeout(() => {
-                            cells[index].classList.remove('anticipation', 'wave-highlight');
-                            cells[index].classList.add('clearing');
-                            cells[index].style.setProperty('--clear-delay', '0ms');
-
-                            // Spawn particles with slight delay for drama
-                            setTimeout(() => {
-                                this.spawnParticles(cells[index], 6);
-                                this.createExplosionRings(cells[index]);
-                            }, 50);
-                        }, clearDelay);
-                    }
-                });
-            }, maxWaveDelay + 300);
         }
 
-        // Cleanup: Update grid state after all animations complete
-        const totalAnimTime = Math.max(...allCells.map(c => c.waveDelay)) + 700;
+        // Cleanup after animation
+        const maxDelay = allCells.length > 0 ? Math.max(...allCells.map(c => c.waveDelay)) : 0;
         setTimeout(() => {
             cellsToClear.forEach(coord => {
                 const [x, y] = coord.split(',').map(Number);
                 this.grid[y][x] = { filled: false, colorClass: null };
             });
             this.renderGrid();
-        }, totalAnimTime);
+        }, maxDelay + 250);
     }
 
     createLineFlash(rows, cols) {
@@ -1003,7 +967,7 @@ class BlockBloom {
             flash.style.width = `${rect.width - padding * 2}px`;
             flash.style.height = `${cellSize}px`;
             document.body.appendChild(flash);
-            setTimeout(() => flash.remove(), 600);
+            setTimeout(() => flash.remove(), 300);
         });
 
         cols.forEach(x => {
@@ -1014,7 +978,7 @@ class BlockBloom {
             flash.style.width = `${cellSize}px`;
             flash.style.height = `${rect.height - padding * 2}px`;
             document.body.appendChild(flash);
-            setTimeout(() => flash.remove(), 600);
+            setTimeout(() => flash.remove(), 300);
         });
     }
 
@@ -1027,8 +991,8 @@ class BlockBloom {
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
 
-        // Create 3 staggered rings for a richer effect
-        const ringClasses = ['explosion-ring', 'explosion-ring ring-2', 'explosion-ring ring-3'];
+        // Create 2 quick rings
+        const ringClasses = ['explosion-ring', 'explosion-ring ring-2'];
 
         ringClasses.forEach((className, index) => {
             const ring = document.createElement('div');
@@ -1036,7 +1000,7 @@ class BlockBloom {
             ring.style.left = `${centerX}px`;
             ring.style.top = `${centerY}px`;
             document.body.appendChild(ring);
-            setTimeout(() => ring.remove(), 800 + index * 100);
+            setTimeout(() => ring.remove(), 400);
         });
     }
 
