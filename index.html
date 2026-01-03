@@ -562,24 +562,15 @@
 
         /* Line Clear Animation - Moved to enhanced version below */
 
-        /* Board Flash - Quick pulse */
+        /* Board Flash - Instant pulse using transform for GPU acceleration */
         .board.line-clearing {
-            animation: boardFlash 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+            animation: boardFlash 0.15s ease-out;
         }
 
         @keyframes boardFlash {
-            0% {
-                filter: brightness(1);
-                box-shadow: var(--shadow-lg);
-            }
-            40% {
-                filter: brightness(1.15);
-                box-shadow: var(--shadow-lg), 0 0 25px var(--accent-glow);
-            }
-            100% {
-                filter: brightness(1);
-                box-shadow: var(--shadow-lg);
-            }
+            0% { transform: scale(1); }
+            50% { transform: scale(1.008); }
+            100% { transform: scale(1); }
         }
 
         /* Screen Shake (subtle) */
@@ -650,173 +641,53 @@
         }
 
         /* =====================================================
-           LINE CLEAR EFFECTS - Epic clear animations
+           LINE CLEAR EFFECTS - Fast, smooth, GPU-accelerated
            ===================================================== */
 
-        /* Line flash sweep effect - travels across the line */
+        /* Simple line flash - just a quick bright overlay */
         .line-flash {
             position: fixed;
             pointer-events: none;
             z-index: 35;
             border-radius: 4px;
-            overflow: hidden;
+            background: rgba(255, 255, 255, 0.9);
+            animation: lineFlashPop 0.12s ease-out forwards;
+            will-change: transform, opacity;
         }
 
-        .line-flash.horizontal {
-            background: linear-gradient(90deg,
-                transparent 0%,
-                rgba(255, 255, 255, 0.15) 10%,
-                transparent 20%);
-            animation: lineFlashHorizontal 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-        }
-
-        .line-flash.horizontal::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg,
-                transparent 0%,
-                var(--accent-primary) 20%,
-                white 50%,
-                var(--accent-primary) 80%,
-                transparent 100%);
-            animation: sweepRight 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-
-        .line-flash.vertical {
-            background: linear-gradient(180deg,
-                transparent 0%,
-                rgba(255, 255, 255, 0.15) 10%,
-                transparent 20%);
-            animation: lineFlashVertical 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-        }
-
-        .line-flash.vertical::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(180deg,
-                transparent 0%,
-                var(--accent-primary) 20%,
-                white 50%,
-                var(--accent-primary) 80%,
-                transparent 100%);
-            animation: sweepDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-
-        @keyframes sweepRight {
-            0% { left: -100%; opacity: 0.8; }
-            100% { left: 100%; opacity: 0; }
-        }
-
-        @keyframes sweepDown {
-            0% { top: -100%; opacity: 0.8; }
-            100% { top: 100%; opacity: 0; }
-        }
-
-        @keyframes lineFlashHorizontal {
-            0% { opacity: 1; box-shadow: 0 0 15px var(--accent-primary); }
-            100% { opacity: 0; box-shadow: 0 0 25px transparent; }
-        }
-
-        @keyframes lineFlashVertical {
-            0% { opacity: 1; box-shadow: 0 0 15px var(--accent-primary); }
-            100% { opacity: 0; box-shadow: 0 0 25px transparent; }
-        }
-
-        /* Explosion Ring - fast and snappy */
-        .explosion-ring {
-            position: fixed;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: transparent;
-            border: 2px solid var(--success);
-            box-shadow: 0 0 8px var(--success-glow);
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            z-index: 32;
-            animation: explosionRing 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-        }
-
-        .explosion-ring.ring-2 {
-            animation: explosionRing 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.02s forwards;
-            border-color: var(--accent-primary);
-            box-shadow: 0 0 8px var(--accent-glow);
-        }
-
-        .explosion-ring.ring-3 {
-            animation: explosionRing 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.04s forwards;
-            border-color: var(--warning);
-            box-shadow: 0 0 6px rgba(255, 184, 0, 0.5);
-        }
-
-        @keyframes explosionRing {
+        @keyframes lineFlashPop {
             0% {
-                width: 0px;
-                height: 0px;
                 opacity: 0.9;
-                border-width: 3px;
+                transform: scaleX(1) scaleY(1);
             }
             100% {
-                width: 40px;
-                height: 40px;
                 opacity: 0;
-                border-width: 1px;
+                transform: scaleX(1.02) scaleY(1.1);
             }
         }
 
-        /* Enhanced cell clearing animation - fast pop and dissolve */
+        /* Cell clearing - instant pop with GPU-only properties */
         .cell.clearing {
-            animation: cellClearEnhanced 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            animation: cellClear 0.18s ease-out forwards;
+            will-change: transform, opacity;
         }
 
-        @keyframes cellClearEnhanced {
+        @keyframes cellClear {
             0% {
                 transform: scale(1);
                 opacity: 1;
-                filter: brightness(1);
             }
-            30% {
-                transform: scale(1.2);
+            40% {
+                transform: scale(1.15);
                 opacity: 1;
-                filter: brightness(2);
-                box-shadow: 0 0 20px currentColor, 0 0 30px var(--accent-primary);
             }
             100% {
                 transform: scale(0);
                 opacity: 0;
-                filter: brightness(2.5);
             }
         }
 
-        /* Shimmer effect before clear */
-        .cell.shimmer {
-            animation: cellShimmer 0.15s ease-out forwards;
-        }
-
-        @keyframes cellShimmer {
-            0% {
-                filter: brightness(1);
-                box-shadow: none;
-            }
-            50% {
-                filter: brightness(1.8);
-                box-shadow: 0 0 15px currentColor, 0 0 25px var(--accent-primary);
-            }
-            100% {
-                filter: brightness(2);
-                box-shadow: 0 0 20px currentColor, 0 0 35px var(--accent-primary);
-            }
-        }
-
-        /* Wave highlight that travels through the line */
+        /* Wave highlight - simple brightness pulse */
         .cell.wave-highlight {
             animation: waveHighlight 0.3s ease-out forwards;
         }
