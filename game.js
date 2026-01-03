@@ -39,6 +39,55 @@ const PIECES = {
 const BLOCK_COLORS = ['block-1', 'block-2', 'block-3', 'block-4', 'block-5', 'block-6', 'block-7', 'block-8'];
 const PARTICLE_COLORS = ['#ff4d6d', '#4d79ff', '#00d68f', '#ffb800', '#a855f7', '#ff6b35', '#00d4ff', '#f472b6'];
 
+// ==================== ACHIEVEMENTS DEFINITIONS ====================
+const ACHIEVEMENTS = [
+    { id: 'first_line', name: 'First Blood', desc: 'Clear your first line', icon: '🎯', check: (s) => s.totalLinesEver >= 1 },
+    { id: 'line_master', name: 'Line Master', desc: 'Clear 100 lines total', icon: '📏', check: (s) => s.totalLinesEver >= 100 },
+    { id: 'line_legend', name: 'Line Legend', desc: 'Clear 500 lines total', icon: '🌟', check: (s) => s.totalLinesEver >= 500 },
+    { id: 'combo_3', name: 'Combo Starter', desc: 'Get a 3x combo', icon: '⚡', check: (s) => s.bestComboEver >= 3 },
+    { id: 'combo_5', name: 'Combo Master', desc: 'Get a 5x combo', icon: '🔥', check: (s) => s.bestComboEver >= 5 },
+    { id: 'combo_10', name: 'Combo Legend', desc: 'Get a 10x combo', icon: '💥', check: (s) => s.bestComboEver >= 10 },
+    { id: 'score_100', name: 'Century', desc: 'Score 100 points', icon: '💯', check: (s) => s.highScore >= 100 },
+    { id: 'score_500', name: 'High Roller', desc: 'Score 500 points', icon: '🎰', check: (s) => s.highScore >= 500 },
+    { id: 'score_1000', name: 'Thousand Club', desc: 'Score 1000 points', icon: '🏆', check: (s) => s.highScore >= 1000 },
+    { id: 'score_5000', name: 'Block Master', desc: 'Score 5000 points', icon: '👑', check: (s) => s.highScore >= 5000 },
+    { id: 'games_10', name: 'Getting Started', desc: 'Play 10 games', icon: '🎮', check: (s) => s.gamesPlayed >= 10 },
+    { id: 'games_50', name: 'Dedicated', desc: 'Play 50 games', icon: '🎯', check: (s) => s.gamesPlayed >= 50 },
+    { id: 'games_100', name: 'Addicted', desc: 'Play 100 games', icon: '🤩', check: (s) => s.gamesPlayed >= 100 },
+    { id: 'pieces_100', name: 'Builder', desc: 'Place 100 pieces total', icon: '🧱', check: (s) => s.totalPiecesEver >= 100 },
+    { id: 'pieces_1000', name: 'Architect', desc: 'Place 1000 pieces total', icon: '🏗️', check: (s) => s.totalPiecesEver >= 1000 },
+    { id: 'daily_1', name: 'Daily Player', desc: 'Complete a daily challenge', icon: '📅', check: (s) => s.dailiesCompleted >= 1 },
+    { id: 'daily_7', name: 'Weekly Warrior', desc: 'Complete 7 daily challenges', icon: '📆', check: (s) => s.dailiesCompleted >= 7 },
+];
+
+// ==================== SEEDED RANDOM ====================
+class SeededRandom {
+    constructor(seed) {
+        this.seed = seed;
+    }
+
+    next() {
+        this.seed = (this.seed * 1103515245 + 12345) & 0x7fffffff;
+        return this.seed / 0x7fffffff;
+    }
+
+    nextInt(min, max) {
+        return Math.floor(this.next() * (max - min + 1)) + min;
+    }
+}
+
+function getDailySeed() {
+    const today = new Date();
+    const dateString = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+    let hash = 0;
+    for (let i = 0; i < dateString.length; i++) {
+        const char = dateString.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return Math.abs(hash);
+}
+
 // ==================== SOUND ENGINE (Web Audio API) ====================
 class SoundEngine {
     constructor() {
@@ -356,12 +405,34 @@ class BlockBloom {
         // Sound engine
         this.sound = new SoundEngine();
 
+        // Statistics (persistent)
+        this.stats = {
+            gamesPlayed: 0,
+            highScore: 0,
+            totalLinesEver: 0,
+            totalPiecesEver: 0,
+            bestComboEver: 0,
+            totalScore: 0,
+            dailiesCompleted: 0,
+            lastDailyDate: null
+        };
+
+        // Achievements
+        this.unlockedAchievements = new Set();
+        this.pendingAchievements = [];
+
+        // Daily challenge
+        this.dailyRng = null;
+        this.dailySeed = getDailySeed();
+
         this.init();
     }
 
     init() {
         this.loadSettings();
         this.loadBestScore();
+        this.loadStats();
+        this.loadAchievements();
         this.createGrid();
         this.setupEventListeners();
         this.showModal('menu-modal');
@@ -445,7 +516,15 @@ class BlockBloom {
 
         for (let i = 0; i < 3; i++) {
             if (this.pieces[i] === null) {
-                let random = Math.random() * totalWeight;
+                let random;
+
+                // Use seeded random for daily challenge
+                if (this.gameMode === 'daily' && this.dailyRng) {
+                    random = this.dailyRng.next() * totalWeight;
+                } else {
+                    random = Math.random() * totalWeight;
+                }
+
                 let selectedKey = pieceKeys[0];
 
                 for (let j = 0; j < pieceKeys.length; j++) {
@@ -457,7 +536,10 @@ class BlockBloom {
                 }
 
                 const pieceData = PIECES[selectedKey];
-                const colorClass = BLOCK_COLORS[Math.floor(Math.random() * BLOCK_COLORS.length)];
+                const colorIndex = this.gameMode === 'daily' && this.dailyRng
+                    ? this.dailyRng.nextInt(0, BLOCK_COLORS.length - 1)
+                    : Math.floor(Math.random() * BLOCK_COLORS.length);
+                const colorClass = BLOCK_COLORS[colorIndex];
 
                 this.pieces[i] = {
                     key: selectedKey,
@@ -1184,6 +1266,14 @@ class BlockBloom {
         this.totalLinesCleared = 0;
         this.lastMilestone = 0;
 
+        // Initialize daily challenge RNG
+        if (mode === 'daily') {
+            this.dailySeed = getDailySeed();
+            this.dailyRng = new SeededRandom(this.dailySeed);
+        } else {
+            this.dailyRng = null;
+        }
+
         this.createGrid();
         this.generatePieces();
         this.render();
@@ -1207,6 +1297,32 @@ class BlockBloom {
         this.sound.playGameOver();
         this.haptic('gameOver');
 
+        // Update persistent statistics
+        this.stats.gamesPlayed++;
+        this.stats.totalLinesEver += this.linesCleared;
+        this.stats.totalPiecesEver += this.piecesPlaced;
+        this.stats.totalScore += this.score;
+        if (this.score > this.stats.highScore) {
+            this.stats.highScore = this.score;
+        }
+        if (this.maxCombo > this.stats.bestComboEver) {
+            this.stats.bestComboEver = this.maxCombo;
+        }
+
+        // Track daily challenge completion
+        if (this.gameMode === 'daily') {
+            const today = new Date().toDateString();
+            if (this.stats.lastDailyDate !== today) {
+                this.stats.dailiesCompleted++;
+                this.stats.lastDailyDate = today;
+            }
+        }
+
+        this.saveStats();
+
+        // Check achievements
+        this.checkAchievements();
+
         const finalScore = document.getElementById('final-score');
         const statLines = document.getElementById('stat-lines');
         const statCombo = document.getElementById('stat-combo');
@@ -1224,6 +1340,9 @@ class BlockBloom {
 
         this.showModal('gameover-modal');
         localStorage.removeItem('blockbloom_save');
+
+        // Show pending achievements after modal
+        setTimeout(() => this.showPendingAchievements(), 500);
     }
 
     // ==================== POWER-UPS ====================
@@ -1486,6 +1605,27 @@ class BlockBloom {
             this.tutorialDone = false;
             this.hideModal('settings-modal');
             this.startTutorial();
+        });
+
+        // Statistics & Achievements buttons
+        document.getElementById('stats-btn')?.addEventListener('click', () => {
+            this.sound.playClick();
+            this.showStatsModal();
+        });
+
+        document.getElementById('close-stats-btn')?.addEventListener('click', () => {
+            this.sound.playClick();
+            this.hideModal('stats-modal');
+        });
+
+        document.getElementById('achievements-btn')?.addEventListener('click', () => {
+            this.sound.playClick();
+            this.showAchievementsModal();
+        });
+
+        document.getElementById('close-achievements-btn')?.addEventListener('click', () => {
+            this.sound.playClick();
+            this.hideModal('achievements-modal');
         });
     }
 
@@ -1755,6 +1895,123 @@ class BlockBloom {
             colorblindMode: this.colorblindMode,
             zenTheme: this.zenTheme
         }));
+    }
+
+    // ==================== STATISTICS ====================
+    saveStats() {
+        localStorage.setItem('blockbloom_stats', JSON.stringify(this.stats));
+    }
+
+    loadStats() {
+        const saved = localStorage.getItem('blockbloom_stats');
+        if (saved) {
+            try {
+                this.stats = { ...this.stats, ...JSON.parse(saved) };
+            } catch (e) {
+                console.log('Failed to load stats');
+            }
+        }
+    }
+
+    showStatsModal() {
+        const avgScore = this.stats.gamesPlayed > 0
+            ? Math.round(this.stats.totalScore / this.stats.gamesPlayed)
+            : 0;
+
+        document.getElementById('stats-games-played').textContent = this.stats.gamesPlayed.toLocaleString();
+        document.getElementById('stats-high-score').textContent = this.stats.highScore.toLocaleString();
+        document.getElementById('stats-total-lines').textContent = this.stats.totalLinesEver.toLocaleString();
+        document.getElementById('stats-total-pieces').textContent = this.stats.totalPiecesEver.toLocaleString();
+        document.getElementById('stats-best-combo').textContent = `x${this.stats.bestComboEver}`;
+        document.getElementById('stats-avg-score').textContent = avgScore.toLocaleString();
+
+        this.showModal('stats-modal');
+    }
+
+    // ==================== ACHIEVEMENTS ====================
+    loadAchievements() {
+        const saved = localStorage.getItem('blockbloom_achievements');
+        if (saved) {
+            try {
+                this.unlockedAchievements = new Set(JSON.parse(saved));
+            } catch (e) {
+                this.unlockedAchievements = new Set();
+            }
+        }
+    }
+
+    saveAchievements() {
+        localStorage.setItem('blockbloom_achievements', JSON.stringify([...this.unlockedAchievements]));
+    }
+
+    checkAchievements() {
+        for (const achievement of ACHIEVEMENTS) {
+            if (!this.unlockedAchievements.has(achievement.id)) {
+                if (achievement.check(this.stats)) {
+                    this.unlockedAchievements.add(achievement.id);
+                    this.pendingAchievements.push(achievement);
+                }
+            }
+        }
+        this.saveAchievements();
+    }
+
+    showPendingAchievements() {
+        if (this.pendingAchievements.length === 0) return;
+
+        const showNext = () => {
+            if (this.pendingAchievements.length === 0) return;
+
+            const achievement = this.pendingAchievements.shift();
+            this.showAchievementNotification(achievement);
+
+            if (this.pendingAchievements.length > 0) {
+                setTimeout(showNext, 3500);
+            }
+        };
+
+        showNext();
+    }
+
+    showAchievementNotification(achievement) {
+        const notification = document.getElementById('achievement-notification');
+        const nameEl = document.getElementById('achievement-unlock-name');
+
+        if (notification && nameEl) {
+            nameEl.textContent = achievement.name;
+            notification.classList.add('show');
+
+            this.sound.playMilestone();
+            this.haptic('milestone');
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+    }
+
+    showAchievementsModal() {
+        const list = document.getElementById('achievements-list');
+        if (!list) return;
+
+        list.innerHTML = '';
+
+        for (const achievement of ACHIEVEMENTS) {
+            const unlocked = this.unlockedAchievements.has(achievement.id);
+            const item = document.createElement('div');
+            item.className = `achievement-item ${unlocked ? 'unlocked' : 'locked'}`;
+            item.innerHTML = `
+                <div class="achievement-icon">${achievement.icon}</div>
+                <div class="achievement-info">
+                    <div class="achievement-name">${achievement.name}</div>
+                    <div class="achievement-desc">${achievement.desc}</div>
+                </div>
+                ${unlocked ? '<div class="achievement-check">✓</div>' : ''}
+            `;
+            list.appendChild(item);
+        }
+
+        this.showModal('achievements-modal');
     }
 
     loadSettings() {
