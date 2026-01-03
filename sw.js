@@ -1,4 +1,4 @@
-const CACHE_NAME = 'blockbloom-v3';
+const CACHE_NAME = 'blockbloom-v4';
 const urlsToCache = [
     '/',
     '/index.html',
