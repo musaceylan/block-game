@@ -20,41 +20,19 @@
 
 ## Deploy
 
-Bu proje **static web** - dosyalar direkt serve ediliyor.
+**OTOMATIK DEPLOY AKTIF** - GitHub'a push ettiğinde sunucu otomatik güncellenir.
 
-### Deploy Komutu
-```bash
-cd /home/musa/projects/block-game && git pull origin main
-```
+GitHub Actions workflow: `.github/workflows/deploy.yml`
+
+### Ne Yapman Gerekiyor
+1. Kod değişikliği yap
+2. Commit et
+3. `git push origin main`
+4. **Bitti!** Sunucu otomatik güncellenir (1-2 dakika)
+
+### Test Et
+https://block.ceylan.world
 
 ### Nginx Config
-- **Config:** /etc/nginx/sites-available/block.ceylan.world
 - **Root:** /home/musa/projects/block-game
-- **SSL:** Let's Encrypt (otomatik)
-
-## Dosya Yapisi
-
-```
-block-game/
-├── index.html      # Ana sayfa
-├── game.js         # Oyun mantigi
-├── icons/          # Iconlar
-├── ios/            # iOS Capacitor build
-└── capacitor.config.json
-```
-
-## Calisma Prensipleri
-
-- Kod degisikligi yaptiktan sonra DEPLOY YAP
-- Deploy = `git pull` (sunucuda)
-- Test et: https://block.ceylan.world
-
-### Deploy Tam Komut (SSH ile)
-```bash
-ssh musa@116.203.78.184 "cd /home/musa/projects/block-game && git pull origin main"
-```
-
-### Veya Sunucudaysan
-```bash
-cd /home/musa/projects/block-game && git pull origin main
-```
+- **SSL:** Let's Encrypt
