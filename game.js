@@ -724,15 +724,20 @@ class BlockBloom {
         this.addScore(totalPoints);
 
         if (this.pieces.every(p => p === null)) {
+            console.log('[PlacePiece] All pieces used, generating new pieces in 200ms');
             setTimeout(() => {
                 this.generatePieces();
+                console.log('[PlacePiece] New pieces generated, checking game over...');
                 if (this.checkGameOver()) {
+                    console.log('[PlacePiece] Game over detected! Calling endGame in 300ms');
                     setTimeout(() => this.endGame(), 300);
                 }
             }, 200);
         } else {
             this.renderPieces();
+            console.log('[PlacePiece] Pieces remaining, checking game over...');
             if (this.checkGameOver()) {
+                console.log('[PlacePiece] Game over detected! Calling endGame in 600ms');
                 setTimeout(() => this.endGame(), 600);
             }
         }
@@ -1222,21 +1227,41 @@ class BlockBloom {
 
     // ==================== GAME STATE ====================
     checkGameOver() {
+        console.log('[GameOver Check] Starting check...');
+        console.log('[GameOver Check] Pieces:', this.pieces.map((p, i) => p ? `Piece ${i}: ${p.shape.length}x${p.shape[0]?.length}` : `Piece ${i}: null`));
+
         if (this.pieces.every(p => p === null)) {
+            console.log('[GameOver Check] All pieces are null, not game over');
             return false;
         }
 
-        for (let piece of this.pieces) {
+        const unplaceablePieces = [];
+
+        for (let i = 0; i < this.pieces.length; i++) {
+            const piece = this.pieces[i];
             if (piece === null) continue;
 
-            for (let y = 0; y < this.gridSize; y++) {
-                for (let x = 0; x < this.gridSize; x++) {
+            let canPlaceThisPiece = false;
+            for (let y = 0; y < this.gridSize && !canPlaceThisPiece; y++) {
+                for (let x = 0; x < this.gridSize && !canPlaceThisPiece; x++) {
                     if (this.canPlacePiece(piece, x, y)) {
-                        return false;
+                        canPlaceThisPiece = true;
                     }
                 }
             }
+
+            if (!canPlaceThisPiece) {
+                unplaceablePieces.push(i);
+                console.log(`[GameOver Check] Piece ${i} CANNOT be placed anywhere`);
+            } else {
+                console.log(`[GameOver Check] Piece ${i} CAN be placed, game continues`);
+                return false;
+            }
         }
+
+        // Store unplaceable pieces for display
+        this.unplaceablePieces = unplaceablePieces;
+        console.log('[GameOver Check] GAME OVER! Unplaceable pieces:', unplaceablePieces);
         return true;
     }
 
@@ -1291,6 +1316,12 @@ class BlockBloom {
     }
 
     endGame() {
+        console.log('[EndGame] ========== END GAME CALLED ==========');
+        console.log('[EndGame] Score:', this.score);
+        console.log('[EndGame] Lines cleared:', this.linesCleared);
+        console.log('[EndGame] Pieces placed:', this.piecesPlaced);
+        console.log('[EndGame] Unplaceable pieces:', this.unplaceablePieces);
+
         this.isGameOver = true;
         this.gameStarted = false;
 
@@ -1328,6 +1359,7 @@ class BlockBloom {
         const statCombo = document.getElementById('stat-combo');
         const statPieces = document.getElementById('stat-pieces');
         const newBestBadge = document.getElementById('new-best-badge');
+        const gameOverReason = document.getElementById('gameover-reason');
 
         if (finalScore) finalScore.textContent = this.score.toLocaleString();
         if (statLines) statLines.textContent = this.linesCleared;
@@ -1338,7 +1370,28 @@ class BlockBloom {
             newBestBadge.classList.toggle('hidden', !this.isNewBest);
         }
 
+        // Show reason for game over
+        if (gameOverReason) {
+            const pieceCount = this.unplaceablePieces?.length || 0;
+            if (pieceCount > 0) {
+                gameOverReason.textContent = `No space for ${pieceCount} remaining piece${pieceCount > 1 ? 's' : ''}`;
+            } else {
+                gameOverReason.textContent = 'No valid moves remaining';
+            }
+            console.log('[EndGame] Reason displayed:', gameOverReason.textContent);
+        }
+
+        console.log('[EndGame] About to show modal...');
+        const modal = document.getElementById('gameover-modal');
+        console.log('[EndGame] Modal element found:', !!modal);
+        console.log('[EndGame] Modal classes before:', modal?.className);
+
         this.showModal('gameover-modal');
+
+        console.log('[EndGame] Modal classes after:', modal?.className);
+        console.log('[EndGame] Modal computed display:', modal ? getComputedStyle(modal).display : 'N/A');
+        console.log('[EndGame] Modal computed visibility:', modal ? getComputedStyle(modal).visibility : 'N/A');
+        console.log('[EndGame] Modal computed opacity:', modal ? getComputedStyle(modal).opacity : 'N/A');
         localStorage.removeItem('blockbloom_save');
 
         // Show pending achievements after modal

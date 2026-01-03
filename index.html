@@ -1101,6 +1101,13 @@
             font-size: 14px;
         }
 
+        .gameover-reason {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: var(--space-sm);
+            opacity: 0.8;
+        }
+
         .modal-score {
             font-size: 64px;
             font-weight: 900;
@@ -1995,6 +2002,7 @@
         <div class="modal">
             <div class="modal-icon">🎮</div>
             <div class="modal-title">Game Over</div>
+            <div class="gameover-reason" id="gameover-reason">No valid moves remaining</div>
             <div class="new-best-badge hidden" id="new-best-badge">🏆 New Best!</div>
             <div class="modal-score" id="final-score">0</div>
             <div class="modal-stats">
@@ -2144,6 +2152,6 @@
         </div>
     </div>
 
-    <script src="game.js?v=12"></script>
+    <script src="game.js?v=13"></script>
 </body>
 </html>
