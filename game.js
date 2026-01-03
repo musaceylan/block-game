@@ -1888,7 +1888,10 @@ class BlockBloom {
 
     // ==================== MODALS ====================
     showModal(id) {
-        document.getElementById(id)?.classList.add('visible');
+        const modal = document.getElementById(id);
+        if (modal) {
+            modal.classList.add('visible');
+        }
     }
 
     hideModal(id) {
