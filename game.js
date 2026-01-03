@@ -60,6 +60,129 @@ const ACHIEVEMENTS = [
     { id: 'daily_7', name: 'Weekly Warrior', desc: 'Complete 7 daily challenges', icon: '📆', check: (s) => s.dailiesCompleted >= 7 },
 ];
 
+// ==================== GRID CLASS ====================
+class Grid {
+    constructor(size = 10) {
+        this.size = size;
+        this.cells = [];
+        this.create();
+    }
+
+    create() {
+        this.cells = [];
+        for (let y = 0; y < this.size; y++) {
+            this.cells[y] = [];
+            for (let x = 0; x < this.size; x++) {
+                this.cells[y][x] = { filled: false, colorClass: null };
+            }
+        }
+    }
+
+    getCell(x, y) {
+        if (x < 0 || x >= this.size || y < 0 || y >= this.size) {
+            return null;
+        }
+        return this.cells[y][x];
+    }
+
+    setCell(x, y, filled, colorClass = null) {
+        if (x < 0 || x >= this.size || y < 0 || y >= this.size) {
+            return false;
+        }
+        this.cells[y][x] = { filled, colorClass };
+        return true;
+    }
+
+    clearCell(x, y) {
+        return this.setCell(x, y, false, null);
+    }
+
+    isCellFilled(x, y) {
+        const cell = this.getCell(x, y);
+        return cell ? cell.filled : false;
+    }
+
+    canPlacePiece(piece, startX, startY) {
+        if (!piece) return false;
+
+        const shape = piece.shape;
+        for (let y = 0; y < shape.length; y++) {
+            for (let x = 0; x < shape[y].length; x++) {
+                if (shape[y][x] === 1) {
+                    const gridX = startX + x;
+                    const gridY = startY + y;
+
+                    if (gridX < 0 || gridX >= this.size || gridY < 0 || gridY >= this.size) {
+                        return false;
+                    }
+
+                    if (this.isCellFilled(gridX, gridY)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    findCompletedLines() {
+        const rowsToClear = [];
+        const colsToClear = [];
+
+        // Check rows
+        for (let y = 0; y < this.size; y++) {
+            if (this.cells[y].every(cell => cell.filled)) {
+                rowsToClear.push(y);
+            }
+        }
+
+        // Check columns
+        for (let x = 0; x < this.size; x++) {
+            let full = true;
+            for (let y = 0; y < this.size; y++) {
+                if (!this.cells[y][x].filled) {
+                    full = false;
+                    break;
+                }
+            }
+            if (full) colsToClear.push(x);
+        }
+
+        return { rows: rowsToClear, cols: colsToClear };
+    }
+
+    clearLines(rows, cols) {
+        const cellsToClear = new Set();
+
+        for (let y of rows) {
+            for (let x = 0; x < this.size; x++) {
+                cellsToClear.add(`${x},${y}`);
+            }
+        }
+
+        for (let x of cols) {
+            for (let y = 0; y < this.size; y++) {
+                cellsToClear.add(`${x},${y}`);
+            }
+        }
+
+        cellsToClear.forEach(coord => {
+            const [x, y] = coord.split(',').map(Number);
+            this.clearCell(x, y);
+        });
+
+        return cellsToClear;
+    }
+
+    toJSON() {
+        return JSON.parse(JSON.stringify(this.cells));
+    }
+
+    fromJSON(data) {
+        this.cells = JSON.parse(JSON.stringify(data));
+    }
+}
+
 // ==================== SEEDED RANDOM ====================
 class SeededRandom {
     constructor(seed) {
@@ -357,7 +480,7 @@ class SoundEngine {
 class BlockBloom {
     constructor() {
         this.gridSize = 10;
-        this.grid = [];
+        this.grid = new Grid(this.gridSize);
         this.pieces = [null, null, null];
         this.score = 0;
         this.displayScore = 0;
@@ -460,13 +583,7 @@ class BlockBloom {
 
     // ==================== GRID ====================
     createGrid() {
-        this.grid = [];
-        for (let y = 0; y < this.gridSize; y++) {
-            this.grid[y] = [];
-            for (let x = 0; x < this.gridSize; x++) {
-                this.grid[y][x] = { filled: false, colorClass: null };
-            }
-        }
+        this.grid.create();
     }
 
     renderGrid() {
@@ -482,20 +599,21 @@ class BlockBloom {
                 cell.dataset.x = x;
                 cell.dataset.y = y;
 
-                if (this.grid[y][x].filled) {
-                    cell.classList.add('filled', this.grid[y][x].colorClass);
+                const gridCell = this.grid.getCell(x, y);
+                if (gridCell && gridCell.filled) {
+                    cell.classList.add('filled', gridCell.colorClass);
                 }
 
                 if (this.ghostPosition && this.draggedPiece) {
                     const shape = this.draggedPiece.shape;
-                    const canPlace = this.canPlacePiece(this.draggedPiece, this.ghostPosition.x, this.ghostPosition.y);
+                    const canPlace = this.grid.canPlacePiece(this.draggedPiece, this.ghostPosition.x, this.ghostPosition.y);
 
                     for (let py = 0; py < shape.length; py++) {
                         for (let px = 0; px < shape[py].length; px++) {
                             if (shape[py][px] === 1) {
                                 const gx = this.ghostPosition.x + px;
                                 const gy = this.ghostPosition.y + py;
-                                if (gx === x && gy === y && !this.grid[y][x].filled) {
+                                if (gx === x && gy === y && !this.grid.isCellFilled(x, y)) {
                                     cell.classList.add(canPlace ? 'preview-valid' : 'preview-invalid');
                                 }
                             }
@@ -614,7 +732,7 @@ class BlockBloom {
             let canPlace = false;
             for (let y = 0; y < this.gridSize && !canPlace; y++) {
                 for (let x = 0; x < this.gridSize && !canPlace; x++) {
-                    if (this.canPlacePiece(piece, x, y)) {
+                    if (this.grid.canPlacePiece(piece, x, y)) {
                         canPlace = true;
                     }
                 }
@@ -628,26 +746,7 @@ class BlockBloom {
 
     // ==================== PLACEMENT ====================
     canPlacePiece(piece, startX, startY) {
-        if (!piece) return false;
-
-        const shape = piece.shape;
-        for (let y = 0; y < shape.length; y++) {
-            for (let x = 0; x < shape[y].length; x++) {
-                if (shape[y][x] === 1) {
-                    const gridX = startX + x;
-                    const gridY = startY + y;
-
-                    if (gridX < 0 || gridX >= this.gridSize || gridY < 0 || gridY >= this.gridSize) {
-                        return false;
-                    }
-
-                    if (this.grid[gridY] && this.grid[gridY][gridX] && this.grid[gridY][gridX].filled) {
-                        return false;
-                    }
-                }
-            }
-        }
-        return true;
+        return this.grid.canPlacePiece(piece, startX, startY);
     }
 
     placePiece(pieceIndex, startX, startY) {
@@ -668,7 +767,7 @@ class BlockBloom {
                 if (shape[y][x] === 1) {
                     const gridX = startX + x;
                     const gridY = startY + y;
-                    this.grid[gridY][gridX] = { filled: true, colorClass: piece.colorClass };
+                    this.grid.setCell(gridX, gridY, true, piece.colorClass);
                     placedCells.push({ x: gridX, y: gridY });
                 }
             }
@@ -814,26 +913,7 @@ class BlockBloom {
 
     // ==================== LINE CLEARING ====================
     checkAndClearLines() {
-        const rowsToClear = [];
-        const colsToClear = [];
-
-        for (let y = 0; y < this.gridSize; y++) {
-            if (this.grid[y].every(cell => cell.filled)) {
-                rowsToClear.push(y);
-            }
-        }
-
-        for (let x = 0; x < this.gridSize; x++) {
-            let full = true;
-            for (let y = 0; y < this.gridSize; y++) {
-                if (!this.grid[y][x].filled) {
-                    full = false;
-                    break;
-                }
-            }
-            if (full) colsToClear.push(x);
-        }
-
+        const { rows: rowsToClear, cols: colsToClear } = this.grid.findCompletedLines();
         const totalLines = rowsToClear.length + colsToClear.length;
 
         if (totalLines > 0) {
@@ -916,10 +996,7 @@ class BlockBloom {
         }
 
         setTimeout(() => {
-            cellsToClear.forEach(coord => {
-                const [x, y] = coord.split(',').map(Number);
-                this.grid[y][x] = { filled: false, colorClass: null };
-            });
+            this.grid.clearLines(rows, cols);
             this.renderGrid();
         }, 700);
     }
@@ -1352,7 +1429,7 @@ class BlockBloom {
         }
 
         this.moveHistory.push({
-            grid: JSON.parse(JSON.stringify(this.grid)),
+            grid: this.grid.toJSON(),
             pieces: JSON.parse(JSON.stringify(this.pieces)),
             score: this.score,
             combo: this.combo,
@@ -1366,7 +1443,7 @@ class BlockBloom {
         this.sound.playClick();
 
         const state = this.moveHistory.pop();
-        this.grid = state.grid;
+        this.grid.fromJSON(state.grid);
         this.pieces = state.pieces;
         this.score = state.score;
         this.displayScore = state.score;
@@ -1420,10 +1497,10 @@ class BlockBloom {
                 const nx = x + dx;
                 const ny = y + dy;
                 if (nx >= 0 && nx < this.gridSize && ny >= 0 && ny < this.gridSize) {
-                    if (this.grid[ny][nx].filled) {
+                    if (this.grid.isCellFilled(nx, ny)) {
                         clearedCells.push({ x: nx, y: ny });
                     }
-                    this.grid[ny][nx] = { filled: false, colorClass: null };
+                    this.grid.clearCell(nx, ny);
                 }
             }
         }
@@ -1831,7 +1908,7 @@ class BlockBloom {
         if (this.gameMode !== 'classic' || !this.gameStarted) return;
 
         const save = {
-            grid: this.grid,
+            grid: this.grid.toJSON(),
             pieces: this.pieces,
             score: this.score,
             combo: this.combo,
@@ -1855,7 +1932,7 @@ class BlockBloom {
 
         try {
             const data = JSON.parse(save);
-            this.grid = data.grid;
+            this.grid.fromJSON(data.grid);
             this.pieces = data.pieces;
             this.score = data.score;
             this.displayScore = data.score;
