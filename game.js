@@ -1411,13 +1411,15 @@ class BlockBloom {
 
         // Show reason for game over
         if (gameOverReason) {
-            const pieceCount = this.unplaceablePieces?.length || 0;
-            if (pieceCount > 0) {
-                gameOverReason.textContent = `No space for ${pieceCount} remaining piece${pieceCount > 1 ? 's' : ''}`;
+            // Count remaining pieces (non-null)
+            const remainingPieces = this.pieces.filter(p => p !== null).length;
+            if (remainingPieces > 0) {
+                gameOverReason.textContent = `No space for ${remainingPieces} remaining piece${remainingPieces > 1 ? 's' : ''} on the board`;
             } else {
                 gameOverReason.textContent = 'No valid moves remaining';
             }
             console.log('[EndGame] Reason displayed:', gameOverReason.textContent);
+            console.log('[EndGame] Remaining pieces:', remainingPieces);
         }
 
         console.log('[EndGame] About to show modal...');
