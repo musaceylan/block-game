@@ -1324,22 +1324,31 @@
         }
 
         /* Language Selector */
+        .language-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
         .language-selector {
             display: flex;
+            flex-wrap: wrap;
             gap: 4px;
             background: var(--bg-surface);
-            border-radius: var(--radius-full);
-            padding: 3px;
+            border-radius: var(--radius-md);
+            padding: 6px;
+            width: 100%;
+            justify-content: center;
         }
 
         .lang-btn {
-            padding: 6px 12px;
+            padding: 6px 10px;
             border: none;
             background: transparent;
             color: var(--text-secondary);
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
-            border-radius: var(--radius-full);
+            border-radius: var(--radius-sm);
             cursor: pointer;
             transition: all 0.2s var(--ease-out-expo);
         }
@@ -2098,11 +2107,19 @@
                     <span class="setting-label">Zen Theme</span>
                     <div class="toggle" id="toggle-zen-theme"></div>
                 </div>
-                <div class="setting-row">
+                <div class="setting-row language-row">
                     <span class="setting-label" data-i18n="language">Language</span>
                     <div class="language-selector">
                         <button class="lang-btn active" data-lang="en">EN</button>
                         <button class="lang-btn" data-lang="tr">TR</button>
+                        <button class="lang-btn" data-lang="de">DE</button>
+                        <button class="lang-btn" data-lang="es">ES</button>
+                        <button class="lang-btn" data-lang="fr">FR</button>
+                        <button class="lang-btn" data-lang="pt">PT</button>
+                        <button class="lang-btn" data-lang="ru">RU</button>
+                        <button class="lang-btn" data-lang="ja">JA</button>
+                        <button class="lang-btn" data-lang="ko">KO</button>
+                        <button class="lang-btn" data-lang="zh">ZH</button>
                     </div>
                 </div>
             </div>
