@@ -888,68 +888,98 @@ class BlockBloom {
 
     clearLinesAnimated(rows, cols) {
         const cellsToClear = new Set();
-        const cellsWithDelay = [];
+        const rowCells = []; // Cells organized by row with position info
+        const colCells = []; // Cells organized by column with position info
 
+        // Collect row cells with wave delay (left to right)
         for (let y of rows) {
             for (let x = 0; x < this.gridSize; x++) {
                 const key = `${x},${y}`;
                 if (!cellsToClear.has(key)) {
                     cellsToClear.add(key);
-                    cellsWithDelay.push({ x, y, delay: x * 25 });
+                    rowCells.push({ x, y, waveDelay: x * 30, type: 'row' });
                 }
             }
         }
 
+        // Collect column cells with wave delay (top to bottom)
         for (let x of cols) {
             for (let y = 0; y < this.gridSize; y++) {
                 const key = `${x},${y}`;
                 if (!cellsToClear.has(key)) {
                     cellsToClear.add(key);
-                    cellsWithDelay.push({ x, y, delay: y * 25 });
+                    colCells.push({ x, y, waveDelay: y * 30, type: 'col' });
                 }
             }
         }
 
+        const allCells = [...rowCells, ...colCells];
         const board = document.getElementById('board');
+
         if (board) {
             board.classList.add('line-clearing');
-            setTimeout(() => board.classList.remove('line-clearing'), 500);
+            setTimeout(() => board.classList.remove('line-clearing'), 600);
 
             const cells = board.querySelectorAll('.cell');
 
-            // Create anticipation glow
-            cellsWithDelay.forEach(({ x, y }) => {
+            // Phase 1: Wave highlight travels through cells (anticipation)
+            allCells.forEach(({ x, y, waveDelay }) => {
                 const index = y * this.gridSize + x;
                 if (cells[index]) {
-                    cells[index].classList.add('anticipation');
+                    setTimeout(() => {
+                        cells[index].classList.add('wave-highlight');
+                    }, waveDelay);
                 }
             });
 
-            // After anticipation, start clearing
+            // Phase 2: All cells glow together (building tension)
+            const maxWaveDelay = Math.max(...allCells.map(c => c.waveDelay));
             setTimeout(() => {
-                this.createLineFlash(rows, cols);
-
-                cellsWithDelay.forEach(({ x, y, delay }) => {
+                allCells.forEach(({ x, y }) => {
                     const index = y * this.gridSize + x;
                     if (cells[index]) {
-                        setTimeout(() => {
-                            cells[index].classList.remove('anticipation');
-                            cells[index].classList.add('clearing');
-                            this.spawnParticles(cells[index], 8);
-                            this.createExplosionRing(cells[index]);
-                        }, delay);
+                        cells[index].classList.remove('wave-highlight');
+                        cells[index].classList.add('anticipation');
                     }
                 });
-            }, 80);
+            }, maxWaveDelay + 100);
+
+            // Phase 3: Line flash sweeps through
+            setTimeout(() => {
+                this.createLineFlash(rows, cols);
+            }, maxWaveDelay + 200);
+
+            // Phase 4: Cells clear with staggered wave effect
+            setTimeout(() => {
+                allCells.forEach(({ x, y, waveDelay }) => {
+                    const index = y * this.gridSize + x;
+                    if (cells[index]) {
+                        const clearDelay = waveDelay * 0.6; // Faster wave for clearing
+                        setTimeout(() => {
+                            cells[index].classList.remove('anticipation', 'wave-highlight');
+                            cells[index].classList.add('clearing');
+                            cells[index].style.setProperty('--clear-delay', '0ms');
+
+                            // Spawn particles with slight delay for drama
+                            setTimeout(() => {
+                                this.spawnParticles(cells[index], 6);
+                                this.createExplosionRings(cells[index]);
+                            }, 50);
+                        }, clearDelay);
+                    }
+                });
+            }, maxWaveDelay + 300);
         }
 
+        // Cleanup: Update grid state after all animations complete
+        const totalAnimTime = Math.max(...allCells.map(c => c.waveDelay)) + 700;
         setTimeout(() => {
             cellsToClear.forEach(coord => {
                 const [x, y] = coord.split(',').map(Number);
                 this.grid[y][x] = { filled: false, colorClass: null };
             });
             this.renderGrid();
-        }, 700);
+        }, totalAnimTime);
     }
 
     createLineFlash(rows, cols) {
@@ -984,13 +1014,25 @@ class BlockBloom {
     }
 
     createExplosionRing(element) {
+        this.createExplosionRings(element);
+    }
+
+    createExplosionRings(element) {
         const rect = element.getBoundingClientRect();
-        const ring = document.createElement('div');
-        ring.className = 'explosion-ring';
-        ring.style.left = `${rect.left + rect.width / 2}px`;
-        ring.style.top = `${rect.top + rect.height / 2}px`;
-        document.body.appendChild(ring);
-        setTimeout(() => ring.remove(), 500);
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        // Create 3 staggered rings for a richer effect
+        const ringClasses = ['explosion-ring', 'explosion-ring ring-2', 'explosion-ring ring-3'];
+
+        ringClasses.forEach((className, index) => {
+            const ring = document.createElement('div');
+            ring.className = className;
+            ring.style.left = `${centerX}px`;
+            ring.style.top = `${centerY}px`;
+            document.body.appendChild(ring);
+            setTimeout(() => ring.remove(), 800 + index * 100);
+        });
     }
 
     // ==================== SCREEN EFFECTS ====================
