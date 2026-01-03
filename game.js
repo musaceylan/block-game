@@ -1389,7 +1389,7 @@ class BlockBloom {
             if (this.isBombMode) {
                 const cell = e.target.closest('.cell');
                 if (cell) {
-                    this.useBomb(parseInt(cell.dataset.x), parseInt(cell.dataset.y));
+                    this.useBomb(parseInt(cell.dataset.x, 10), parseInt(cell.dataset.y, 10));
                 }
             }
         });
@@ -1744,7 +1744,7 @@ class BlockBloom {
     }
 
     loadBestScore() {
-        this.bestScore = parseInt(localStorage.getItem('blockbloom_best') || '0');
+        this.bestScore = parseInt(localStorage.getItem('blockbloom_best') || '0', 10);
         this.previousBest = this.bestScore;
     }
 
