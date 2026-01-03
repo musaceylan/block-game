@@ -641,72 +641,77 @@
         }
 
         /* =====================================================
-           LINE CLEAR EFFECTS - Fast, smooth, GPU-accelerated
+           LINE CLEAR EFFECTS - Satisfying with squash & stretch
+           Based on game juice principles and animation best practices
            ===================================================== */
 
-        /* Simple line flash - just a quick bright overlay */
+        /* Line flash - bright instant feedback */
         .line-flash {
             position: fixed;
             pointer-events: none;
             z-index: 35;
             border-radius: 4px;
-            background: rgba(255, 255, 255, 0.9);
-            animation: lineFlashPop 0.12s ease-out forwards;
-            will-change: transform, opacity;
+            background: linear-gradient(
+                90deg,
+                rgba(255,255,255,0) 0%,
+                rgba(255,255,255,0.95) 50%,
+                rgba(255,255,255,0) 100%
+            );
+            animation: lineFlashBright 0.2s cubic-bezier(0.0, 0.0, 0.2, 1) forwards;
+            will-change: opacity;
         }
 
-        @keyframes lineFlashPop {
-            0% {
-                opacity: 0.9;
-                transform: scaleX(1) scaleY(1);
-            }
-            100% {
-                opacity: 0;
-                transform: scaleX(1.02) scaleY(1.1);
-            }
+        .line-flash.vertical {
+            background: linear-gradient(
+                180deg,
+                rgba(255,255,255,0) 0%,
+                rgba(255,255,255,0.95) 50%,
+                rgba(255,255,255,0) 100%
+            );
         }
 
-        /* Cell clearing - instant pop with GPU-only properties */
+        @keyframes lineFlashBright {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* Cell clearing - squash & stretch pop effect */
         .cell.clearing {
-            animation: cellClear 0.18s ease-out forwards;
+            animation: cellClearPop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
             will-change: transform, opacity;
         }
 
-        @keyframes cellClear {
+        @keyframes cellClearPop {
             0% {
-                transform: scale(1);
+                transform: scale(1, 1);
                 opacity: 1;
             }
-            40% {
-                transform: scale(1.15);
+            /* Squash - compress before pop */
+            15% {
+                transform: scale(1.1, 0.9);
                 opacity: 1;
             }
+            /* Stretch - pop outward */
+            35% {
+                transform: scale(0.85, 1.2);
+                opacity: 1;
+            }
+            /* Quick shrink to nothing */
             100% {
-                transform: scale(0);
+                transform: scale(0, 0);
                 opacity: 0;
             }
         }
 
-        /* Wave highlight - simple brightness pulse */
-        .cell.wave-highlight {
-            animation: waveHighlight 0.3s ease-out forwards;
+        /* Bright glow state before clearing */
+        .cell.line-complete {
+            animation: cellGlow 0.1s ease-out forwards;
+            will-change: filter;
         }
 
-        @keyframes waveHighlight {
-            0% {
-                filter: brightness(1);
-                transform: scale(1);
-            }
-            50% {
-                filter: brightness(2);
-                transform: scale(1.1);
-                box-shadow: 0 0 20px currentColor;
-            }
-            100% {
-                filter: brightness(1.5);
-                transform: scale(1.05);
-                box-shadow: 0 0 15px currentColor;
-            }
+        @keyframes cellGlow {
+            0% { filter: brightness(1); }
+            100% { filter: brightness(1.8); }
         }
 
         /* =====================================================
