@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Game Over Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a2e; color: #eee; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .pass { background: #1a4d1a; }
+        .fail { background: #4d1a1a; }
+        .pending { background: #4d4d1a; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; font-size: 16px; }
+        #log { background: #000; padding: 10px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; }
+        iframe { width: 100%; height: 600px; border: 2px solid #333; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Block Bloom - Game Over Test Suite</h1>
+    
+    <h2>Test Controls</h2>
+    <button onclick="runAutomatedTest()">Run Automated Test</button>
+    <button onclick="forceGameOver()">Force Game Over (in iframe)</button>
+    <button onclick="clearLog()">Clear Log</button>
+    
+    <h2>Console Log</h2>
+    <div id="log"></div>
+    
+    <h2>Game (in iframe)</h2>
+    <iframe id="gameFrame" src="index.html"></iframe>
+    
+    <script>
+        const logEl = document.getElementById('log');
+        
+        function log(msg, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff6b6b' : type === 'success' ? '#51cf66' : '#74c0fc';
+            logEl.innerHTML += `<span style="color:${color}">[${timestamp}] ${msg}</span>\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function clearLog() {
+            logEl.innerHTML = '';
+        }
+        
+        function getGame() {
+            const iframe = document.getElementById('gameFrame');
+            return iframe.contentWindow.game;
+        }
+        
+        function forceGameOver() {
+            const game = getGame();
+            if (!game) {
+                log('Game not found! Make sure game is loaded.', 'error');
+                return;
+            }
+            
+            log('=== FORCING GAME OVER ===');
+            
+            // Fill the grid completely
+            log('Filling grid completely...');
+            for (let y = 0; y < game.gridSize; y++) {
+                for (let x = 0; x < game.gridSize; x++) {
+                    game.grid[y][x] = { filled: true, colorClass: 'block-1' };
+                }
+            }
+            
+            // Set pieces that can't fit
+            log('Setting unplaceable pieces...');
+            game.pieces = [
+                { shape: [[1, 1], [1, 1]], colorClass: 'block-2', cellCount: 4 },
+                { shape: [[1, 1, 1]], colorClass: 'block-3', cellCount: 3 },
+                null
+            ];
+            
+            // Render the changes
+            game.render();
+            game.renderPieces();
+            
+            // Check game over
+            log('Checking game over condition...');
+            const isGameOver = game.checkGameOver();
+            log(`checkGameOver() returned: ${isGameOver}`, isGameOver ? 'success' : 'error');
+            
+            if (isGameOver) {
+                log('Triggering endGame()...');
+                game.endGame();
+                log('endGame() called! Check if modal appeared.', 'success');
+            } else {
+                log('Game over not detected - something is wrong!', 'error');
+            }
+        }
+        
+        function runAutomatedTest() {
+            log('=== AUTOMATED TEST STARTED ===');
+            
+            const game = getGame();
+            if (!game) {
+                log('Game not found! Waiting for iframe to load...', 'error');
+                setTimeout(runAutomatedTest, 1000);
+                return;
+            }
+            
+            // Test 1: Check game object exists
+            log('Test 1: Game object exists');
+            log(`  - gridSize: ${game.gridSize}`, 'success');
+            log(`  - grid exists: ${!!game.grid}`, 'success');
+            log(`  - checkGameOver exists: ${typeof game.checkGameOver === 'function'}`, 'success');
+            log(`  - endGame exists: ${typeof game.endGame === 'function'}`, 'success');
+            log(`  - showModal exists: ${typeof game.showModal === 'function'}`, 'success');
+            
+            // Test 2: Check modal element exists
+            log('Test 2: Modal element exists');
+            const modal = game.document || document.getElementById('gameFrame').contentDocument;
+            const gameoverModal = modal.getElementById('gameover-modal');
+            log(`  - gameover-modal element: ${!!gameoverModal}`, gameoverModal ? 'success' : 'error');
+            log(`  - gameover-reason element: ${!!modal.getElementById('gameover-reason')}`, 'success');
+            
+            // Test 3: Empty grid should not be game over
+            log('Test 3: Empty grid with pieces - should NOT be game over');
+            game.createGrid();
+            game.pieces = [{ shape: [[1]], colorClass: 'block-1', cellCount: 1 }, null, null];
+            const emptyResult = game.checkGameOver();
+            log(`  - Result: ${emptyResult}`, !emptyResult ? 'success' : 'error');
+            
+            // Test 4: Full grid should be game over
+            log('Test 4: Full grid with pieces - SHOULD be game over');
+            for (let y = 0; y < game.gridSize; y++) {
+                for (let x = 0; x < game.gridSize; x++) {
+                    game.grid[y][x] = { filled: true, colorClass: 'block-1' };
+                }
+            }
+            game.pieces = [{ shape: [[1]], colorClass: 'block-1', cellCount: 1 }, null, null];
+            const fullResult = game.checkGameOver();
+            log(`  - Result: ${fullResult}`, fullResult ? 'success' : 'error');
+            
+            // Test 5: showModal should add visible class
+            log('Test 5: showModal should add visible class');
+            const beforeClass = gameoverModal.className;
+            game.showModal('gameover-modal');
+            const afterClass = gameoverModal.className;
+            log(`  - Before: "${beforeClass}"`, 'info');
+            log(`  - After: "${afterClass}"`, 'info');
+            log(`  - Contains visible: ${afterClass.includes('visible')}`, afterClass.includes('visible') ? 'success' : 'error');
+            
+            // Clean up - hide modal
+            game.hideModal('gameover-modal');
+            
+            log('=== AUTOMATED TEST COMPLETE ===');
+        }
+        
+        // Log when iframe loads
+        document.getElementById('gameFrame').onload = function() {
+            log('Game iframe loaded!', 'success');
+            log('Click "Run Automated Test" to test game over logic');
+            log('Click "Force Game Over" to trigger a game over state');
+        };
+    </script>
+</body>
+</html>
