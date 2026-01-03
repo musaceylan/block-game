@@ -356,6 +356,21 @@ class BlockBloom {
         // Sound engine
         this.sound = new SoundEngine();
 
+        // Event listener cleanup tracking
+        this.boundMoveDrag = null;
+        this.boundEndDrag = null;
+        this.eventListenersSetup = false;
+
+        // Idle animation timer
+        this.idleAnimationTimer = null;
+
+        // Throttle state for rendering during drag
+        this.lastRenderTime = 0;
+        this.renderThrottleMs = 16; // ~60fps max
+
+        // Debounce timer for saving
+        this.saveDebounceTimer = null;
+
         this.init();
     }
 
@@ -374,8 +389,14 @@ class BlockBloom {
 
     // ==================== IDLE ANIMATIONS ====================
     startIdleAnimations() {
+        // Clear any existing timer to prevent accumulation
+        if (this.idleAnimationTimer) {
+            clearInterval(this.idleAnimationTimer);
+            this.idleAnimationTimer = null;
+        }
+
         // Breathing animation for piece slots
-        setInterval(() => {
+        this.idleAnimationTimer = setInterval(() => {
             if (!this.gameStarted || this.isGameOver) return;
             const slots = document.querySelectorAll('.piece-slot:not(.used):not(.dragging)');
             slots.forEach((slot, i) => {
@@ -385,6 +406,13 @@ class BlockBloom {
                 }, i * 200);
             });
         }, 3000);
+    }
+
+    stopIdleAnimations() {
+        if (this.idleAnimationTimer) {
+            clearInterval(this.idleAnimationTimer);
+            this.idleAnimationTimer = null;
+        }
     }
 
     // ==================== GRID ====================
@@ -1106,14 +1134,21 @@ class BlockBloom {
     }
 
     startFlowDecay() {
-        if (this.flowDecayTimer) clearInterval(this.flowDecayTimer);
+        this.stopFlowDecay();
 
         this.flowDecayTimer = setInterval(() => {
-            if (this.flowMeter > 0 && !this.isGameOver && this.gameStarted) {
+            if (this.flowMeter > 0 && !this.isGameOver && this.gameStarted && !this.isPaused) {
                 this.flowMeter = Math.max(0, this.flowMeter - 1);
                 this.updateFlowDisplay();
             }
         }, 500);
+    }
+
+    stopFlowDecay() {
+        if (this.flowDecayTimer) {
+            clearInterval(this.flowDecayTimer);
+            this.flowDecayTimer = null;
+        }
     }
 
     updateFlowDisplay() {
@@ -1203,6 +1238,10 @@ class BlockBloom {
     endGame() {
         this.isGameOver = true;
         this.gameStarted = false;
+
+        // Stop all timers to prevent unnecessary processing
+        this.stopFlowDecay();
+        this.stopDragTrail();
 
         this.sound.playGameOver();
         this.haptic('gameOver');
@@ -1380,10 +1419,18 @@ class BlockBloom {
     }
 
     setupEventListeners() {
-        document.addEventListener('touchmove', (e) => this.moveDrag(e), { passive: false });
-        document.addEventListener('touchend', (e) => this.endDrag(e));
-        document.addEventListener('mousemove', (e) => this.moveDrag(e));
-        document.addEventListener('mouseup', (e) => this.endDrag(e));
+        // Prevent duplicate event listeners
+        if (this.eventListenersSetup) return;
+        this.eventListenersSetup = true;
+
+        // Create bound functions for cleanup capability
+        this.boundMoveDrag = (e) => this.moveDrag(e);
+        this.boundEndDrag = (e) => this.endDrag(e);
+
+        document.addEventListener('touchmove', this.boundMoveDrag, { passive: false });
+        document.addEventListener('touchend', this.boundEndDrag);
+        document.addEventListener('mousemove', this.boundMoveDrag);
+        document.addEventListener('mouseup', this.boundEndDrag);
 
         document.getElementById('board')?.addEventListener('click', (e) => {
             if (this.isBombMode) {
@@ -1560,13 +1607,27 @@ class BlockBloom {
     }
 
     startDragTrail() {
+        // Clear any existing trail timer first
+        this.stopDragTrail();
+
         this.dragTrail = [];
         this.trailTimer = setInterval(() => {
             if (this.floatingElement && this.draggedPiece) {
                 const rect = this.floatingElement.getBoundingClientRect();
                 this.createTrailParticle(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            } else {
+                // Auto-cleanup if drag state is inconsistent
+                this.stopDragTrail();
             }
         }, 50);
+    }
+
+    stopDragTrail() {
+        if (this.trailTimer) {
+            clearInterval(this.trailTimer);
+            this.trailTimer = null;
+        }
+        this.dragTrail = [];
     }
 
     createTrailParticle(x, y) {
@@ -1634,17 +1695,25 @@ class BlockBloom {
             this.ghostPosition = null;
         }
 
-        this.renderGrid();
+        // Throttle grid rendering to prevent performance issues
+        // Only re-render if ghost position actually changed
+        const ghostChanged = !oldGhost !== !this.ghostPosition ||
+            (oldGhost && this.ghostPosition && (oldGhost.x !== this.ghostPosition.x || oldGhost.y !== this.ghostPosition.y));
+
+        if (ghostChanged) {
+            const now = performance.now();
+            if (now - this.lastRenderTime >= this.renderThrottleMs) {
+                this.lastRenderTime = now;
+                this.renderGrid();
+            }
+        }
     }
 
     endDrag(e) {
         if (!this.draggedPiece) return;
 
-        // Stop trail
-        if (this.trailTimer) {
-            clearInterval(this.trailTimer);
-            this.trailTimer = null;
-        }
+        // Stop trail - use dedicated cleanup method
+        this.stopDragTrail();
 
         if (this.floatingElement) {
             this.floatingElement.remove();
@@ -1690,6 +1759,20 @@ class BlockBloom {
     saveGame() {
         if (this.gameMode !== 'classic' || !this.gameStarted) return;
 
+        // Debounce save operations to prevent blocking
+        if (this.saveDebounceTimer) {
+            clearTimeout(this.saveDebounceTimer);
+        }
+
+        this.saveDebounceTimer = setTimeout(() => {
+            this.saveDebounceTimer = null;
+            this.saveGameImmediate();
+        }, 300);
+    }
+
+    saveGameImmediate() {
+        if (this.gameMode !== 'classic' || !this.gameStarted) return;
+
         const save = {
             grid: this.grid,
             pieces: this.pieces,
@@ -1706,7 +1789,11 @@ class BlockBloom {
             lastMilestone: this.lastMilestone
         };
 
-        localStorage.setItem('blockbloom_save', JSON.stringify(save));
+        try {
+            localStorage.setItem('blockbloom_save', JSON.stringify(save));
+        } catch (e) {
+            console.warn('Failed to save game state:', e);
+        }
     }
 
     loadGame() {
