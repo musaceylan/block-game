@@ -1323,6 +1323,37 @@
             transform: translateX(24px);
         }
 
+        /* Language Selector */
+        .language-selector {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-surface);
+            border-radius: var(--radius-full);
+            padding: 3px;
+        }
+
+        .lang-btn {
+            padding: 6px 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            transition: all 0.2s var(--ease-out-expo);
+        }
+
+        .lang-btn.active {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dim));
+            color: white;
+        }
+
+        .lang-btn:not(.active):hover {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+        }
+
         /* Tutorial */
         .tutorial-overlay {
             position: fixed;
@@ -2066,6 +2097,13 @@
                 <div class="setting-row">
                     <span class="setting-label">Zen Theme</span>
                     <div class="toggle" id="toggle-zen-theme"></div>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label" data-i18n="language">Language</span>
+                    <div class="language-selector">
+                        <button class="lang-btn active" data-lang="en">EN</button>
+                        <button class="lang-btn" data-lang="tr">TR</button>
+                    </div>
                 </div>
             </div>
             <button class="btn" id="close-settings-btn">Done</button>

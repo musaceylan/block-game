@@ -60,6 +60,112 @@ const ACHIEVEMENTS = [
     { id: 'daily_7', name: 'Weekly Warrior', desc: 'Complete 7 daily challenges', icon: '📆', check: (s) => s.dailiesCompleted >= 7 },
 ];
 
+// ==================== TRANSLATIONS ====================
+const TRANSLATIONS = {
+    en: {
+        // Menu
+        blockBloom: 'Block Bloom',
+        classic: 'Classic',
+        classicDesc: 'Beat your high score',
+        dailyPuzzle: 'Daily Puzzle',
+        dailyDesc: 'Same puzzle for everyone',
+        zenMode: 'Zen Mode',
+        zenDesc: 'Relax, no pressure',
+        startGame: 'Start Game',
+        settings: 'Settings',
+        // Settings
+        soundEffects: 'Sound Effects',
+        hapticFeedback: 'Haptic Feedback',
+        colorBlindMode: 'Color Blind Mode',
+        zenTheme: 'Zen Theme',
+        language: 'Language',
+        done: 'Done',
+        statistics: 'Statistics',
+        achievements: 'Achievements',
+        resetTutorial: 'Reset Tutorial',
+        // Statistics
+        gamesPlayed: 'Games Played',
+        highestScore: 'Highest Score',
+        totalLines: 'Total Lines',
+        piecesPlaced: 'Pieces Placed',
+        bestCombo: 'Best Combo',
+        avgScore: 'Avg Score',
+        close: 'Close',
+        // Game Over
+        gameOver: 'Game Over',
+        finalScore: 'Final Score',
+        newBest: 'NEW BEST!',
+        noSpaceRemaining: 'No space for remaining pieces on the board',
+        noValidMoves: 'No valid moves remaining',
+        playAgain: 'Play Again',
+        menu: 'Menu',
+        // Tutorial
+        step: 'Step',
+        of: 'of',
+        welcome: 'Welcome!',
+        tutorialDrag: 'Drag blocks from the tray and drop them onto the 10×10 grid.',
+        clearLines: 'Clear Lines',
+        tutorialClear: 'Fill a complete row or column to clear it and score points!',
+        buildCombos: 'Build Combos',
+        tutorialCombo: 'Clear lines consecutively to build your combo multiplier!',
+        gotIt: 'Got it!',
+        next: 'Next',
+        // Achievements
+        achievementUnlocked: 'Achievement Unlocked!',
+    },
+    tr: {
+        // Menu
+        blockBloom: 'Block Bloom',
+        classic: 'Klasik',
+        classicDesc: 'En yüksek skorunu geç',
+        dailyPuzzle: 'Günlük Bulmaca',
+        dailyDesc: 'Herkes için aynı bulmaca',
+        zenMode: 'Zen Modu',
+        zenDesc: 'Rahatla, baskı yok',
+        startGame: 'Oyunu Başlat',
+        settings: 'Ayarlar',
+        // Settings
+        soundEffects: 'Ses Efektleri',
+        hapticFeedback: 'Dokunsal Geri Bildirim',
+        colorBlindMode: 'Renk Körü Modu',
+        zenTheme: 'Zen Teması',
+        language: 'Dil',
+        done: 'Tamam',
+        statistics: 'İstatistikler',
+        achievements: 'Başarımlar',
+        resetTutorial: 'Öğreticiyi Sıfırla',
+        // Statistics
+        gamesPlayed: 'Oynanan Oyunlar',
+        highestScore: 'En Yüksek Skor',
+        totalLines: 'Toplam Çizgiler',
+        piecesPlaced: 'Yerleştirilen Parçalar',
+        bestCombo: 'En İyi Kombo',
+        avgScore: 'Ort. Skor',
+        close: 'Kapat',
+        // Game Over
+        gameOver: 'Oyun Bitti',
+        finalScore: 'Son Skor',
+        newBest: 'YENİ REKOR!',
+        noSpaceRemaining: 'Kalan parçalar için tahtada yer yok',
+        noValidMoves: 'Geçerli hamle kalmadı',
+        playAgain: 'Tekrar Oyna',
+        menu: 'Menü',
+        // Tutorial
+        step: 'Adım',
+        of: '/',
+        welcome: 'Hoş Geldin!',
+        tutorialDrag: 'Blokları tepsiden sürükleyip 10×10 ızgaraya bırak.',
+        clearLines: 'Çizgileri Temizle',
+        tutorialClear: 'Bir satır veya sütunu tamamen doldurarak temizle ve puan kazan!',
+        buildCombos: 'Kombo Yap',
+        tutorialCombo: 'Çizgileri arka arkaya temizleyerek kombo çarpanını artır!',
+        gotIt: 'Anladım!',
+        next: 'İleri',
+        // Achievements
+        achievementUnlocked: 'Başarım Açıldı!',
+    }
+};
+
 // ==================== SEEDED RANDOM ====================
 class SeededRandom {
     constructor(seed) {
@@ -394,6 +500,7 @@ class BlockBloom {
         this.hapticEnabled = true;
         this.colorblindMode = false;
         this.zenTheme = false;
+        this.language = 'en';
 
         this.tutorialStep = 0;
         this.tutorialDone = localStorage.getItem('blockbloom_tutorial_done') === 'true';
@@ -1204,7 +1311,7 @@ class BlockBloom {
     showNewBestNotification() {
         const notification = document.createElement('div');
         notification.className = 'new-best-notification';
-        notification.innerHTML = '🏆 NEW BEST!';
+        notification.innerHTML = '🏆 ' + this.t('newBest');
         document.body.appendChild(notification);
 
         setTimeout(() => notification.remove(), 2000);
@@ -1446,9 +1553,9 @@ class BlockBloom {
             // Count remaining pieces (non-null)
             const remainingPieces = this.pieces.filter(p => p !== null).length;
             if (remainingPieces > 0) {
-                gameOverReason.textContent = `No space for ${remainingPieces} remaining piece${remainingPieces > 1 ? 's' : ''} on the board`;
+                gameOverReason.textContent = this.t('noSpaceRemaining');
             } else {
-                gameOverReason.textContent = 'No valid moves remaining';
+                gameOverReason.textContent = this.t('noValidMoves');
             }
             console.log('[EndGame] Reason displayed:', gameOverReason.textContent);
             console.log('[EndGame] Remaining pieces:', remainingPieces);
@@ -1726,6 +1833,14 @@ class BlockBloom {
             this.zenTheme = e.currentTarget.classList.contains('active');
             document.body.classList.toggle('theme-zen', this.zenTheme);
             this.saveSettings();
+        });
+
+        // Language buttons
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.sound.playClick();
+                this.setLanguage(btn.dataset.lang);
+            });
         });
 
         document.getElementById('tutorial-next-btn')?.addEventListener('click', () => {
@@ -2070,8 +2185,109 @@ class BlockBloom {
             soundEnabled: this.soundEnabled,
             hapticEnabled: this.hapticEnabled,
             colorblindMode: this.colorblindMode,
-            zenTheme: this.zenTheme
+            zenTheme: this.zenTheme,
+            language: this.language
         }));
+    }
+
+    t(key) {
+        return TRANSLATIONS[this.language]?.[key] || TRANSLATIONS.en[key] || key;
+    }
+
+    setLanguage(lang) {
+        this.language = lang;
+        this.saveSettings();
+        this.updateUILanguage();
+
+        // Update language button states
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.lang === lang);
+        });
+    }
+
+    updateUILanguage() {
+        const t = (key) => this.t(key);
+
+        // Menu modal
+        const menuTitle = document.querySelector('#menu-modal .modal-title');
+        if (menuTitle) menuTitle.textContent = t('blockBloom');
+
+        // Mode buttons
+        const modeClassic = document.querySelector('[data-mode="classic"] .mode-title');
+        const modeClassicDesc = document.querySelector('[data-mode="classic"] .mode-desc');
+        if (modeClassic) modeClassic.textContent = t('classic');
+        if (modeClassicDesc) modeClassicDesc.textContent = t('classicDesc');
+
+        const modeDaily = document.querySelector('[data-mode="daily"] .mode-title');
+        const modeDailyDesc = document.querySelector('[data-mode="daily"] .mode-desc');
+        if (modeDaily) modeDaily.textContent = t('dailyPuzzle');
+        if (modeDailyDesc) modeDailyDesc.textContent = t('dailyDesc');
+
+        const modeZen = document.querySelector('[data-mode="zen"] .mode-title');
+        const modeZenDesc = document.querySelector('[data-mode="zen"] .mode-desc');
+        if (modeZen) modeZen.textContent = t('zenMode');
+        if (modeZenDesc) modeZenDesc.textContent = t('zenDesc');
+
+        // Menu buttons
+        const startBtn = document.getElementById('start-game-btn');
+        const settingsBtn = document.getElementById('settings-btn');
+        if (startBtn) startBtn.textContent = t('startGame');
+        if (settingsBtn) settingsBtn.textContent = '⚙️ ' + t('settings');
+
+        // Settings modal
+        const settingsTitle = document.querySelector('#settings-modal .modal-title');
+        if (settingsTitle) settingsTitle.textContent = t('settings');
+
+        const settingLabels = document.querySelectorAll('#settings-modal .setting-label');
+        const labelKeys = ['soundEffects', 'hapticFeedback', 'colorBlindMode', 'zenTheme', 'language'];
+        settingLabels.forEach((label, i) => {
+            if (labelKeys[i]) label.textContent = t(labelKeys[i]);
+        });
+
+        const closeSettingsBtn = document.getElementById('close-settings-btn');
+        const statsBtn = document.getElementById('stats-btn');
+        const achievementsBtn = document.getElementById('achievements-btn');
+        const resetTutorialBtn = document.getElementById('reset-tutorial-btn');
+        if (closeSettingsBtn) closeSettingsBtn.textContent = t('done');
+        if (statsBtn) statsBtn.textContent = '📊 ' + t('statistics');
+        if (achievementsBtn) achievementsBtn.textContent = '🏆 ' + t('achievements');
+        if (resetTutorialBtn) resetTutorialBtn.textContent = t('resetTutorial');
+
+        // Statistics modal
+        const statsTitle = document.querySelector('#stats-modal .modal-title');
+        if (statsTitle) statsTitle.textContent = t('statistics');
+
+        const statLabels = document.querySelectorAll('#stats-modal .stat-card-label');
+        const statLabelKeys = ['gamesPlayed', 'highestScore', 'totalLines', 'piecesPlaced', 'bestCombo', 'avgScore'];
+        statLabels.forEach((label, i) => {
+            if (statLabelKeys[i]) label.textContent = t(statLabelKeys[i]);
+        });
+
+        const closeStatsBtn = document.getElementById('close-stats-btn');
+        if (closeStatsBtn) closeStatsBtn.textContent = t('close');
+
+        // Achievements modal
+        const achievementsTitle = document.querySelector('#achievements-modal .modal-title');
+        if (achievementsTitle) achievementsTitle.textContent = t('achievements');
+
+        const closeAchievementsBtn = document.getElementById('close-achievements-btn');
+        if (closeAchievementsBtn) closeAchievementsBtn.textContent = t('close');
+
+        // Game over modal
+        const gameOverTitle = document.querySelector('#game-over-modal .modal-title');
+        if (gameOverTitle) gameOverTitle.textContent = t('gameOver');
+
+        const finalScoreLabel = document.querySelector('#game-over-modal .score-label');
+        if (finalScoreLabel) finalScoreLabel.textContent = t('finalScore');
+
+        const playAgainBtn = document.getElementById('play-again-btn');
+        const menuBtn = document.getElementById('menu-btn');
+        if (playAgainBtn) playAgainBtn.textContent = t('playAgain');
+        if (menuBtn) menuBtn.textContent = t('menu');
+
+        // Achievement notification
+        const achievementNotifTitle = document.querySelector('.achievement-notification-title');
+        if (achievementNotifTitle) achievementNotifTitle.textContent = t('achievementUnlocked');
     }
 
     // ==================== STATISTICS ====================
@@ -2200,6 +2416,7 @@ class BlockBloom {
             this.hapticEnabled = data.hapticEnabled ?? true;
             this.colorblindMode = data.colorblindMode ?? false;
             this.zenTheme = data.zenTheme ?? false;
+            this.language = data.language ?? 'en';
 
             this.sound.enabled = this.soundEnabled;
 
@@ -2218,7 +2435,15 @@ class BlockBloom {
                 document.getElementById('toggle-zen-theme')?.classList.add('active');
                 document.body.classList.add('theme-zen');
             }
+
+            // Update language button states
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === this.language);
+            });
         }
+
+        // Apply language to UI
+        this.updateUILanguage();
     }
 
     // ==================== TUTORIAL ====================
@@ -2230,9 +2455,9 @@ class BlockBloom {
 
     updateTutorialStep() {
         const steps = [
-            { title: 'Welcome!', text: 'Drag blocks from the tray and drop them onto the 10×10 grid.' },
-            { title: 'Clear Lines', text: 'Fill a complete row or column to clear it and score points!' },
-            { title: 'Build Combos', text: 'Clear lines consecutively to build your combo multiplier!' }
+            { title: this.t('welcome'), text: this.t('tutorialDrag') },
+            { title: this.t('clearLines'), text: this.t('tutorialClear') },
+            { title: this.t('buildCombos'), text: this.t('tutorialCombo') }
         ];
 
         const step = steps[this.tutorialStep];
@@ -2241,10 +2466,10 @@ class BlockBloom {
         const textEl = document.getElementById('tutorial-text');
         const nextBtn = document.getElementById('tutorial-next-btn');
 
-        if (stepEl) stepEl.textContent = `Step ${this.tutorialStep + 1} of ${steps.length}`;
+        if (stepEl) stepEl.textContent = `${this.t('step')} ${this.tutorialStep + 1} ${this.t('of')} ${steps.length}`;
         if (titleEl) titleEl.textContent = step.title;
         if (textEl) textEl.textContent = step.text;
-        if (nextBtn) nextBtn.textContent = this.tutorialStep === steps.length - 1 ? 'Got it!' : 'Next';
+        if (nextBtn) nextBtn.textContent = this.tutorialStep === steps.length - 1 ? this.t('gotIt') : this.t('next');
     }
 
     nextTutorialStep() {
