@@ -413,6 +413,28 @@ class BlockBloom {
         // Idle animation timer
         this.idleAnimationTimer = null;
 
+        // Cached DOM element references (initialized in init)
+        this.dom = {
+            board: null,
+            piecesTray: null,
+            particles: null,
+            score: null,
+            bestScore: null,
+            comboValue: null,
+            comboBar: null,
+            comboMeter: null,
+            flowValue: null,
+            flowBar: null,
+            flowMeter: null,
+            comboPopup: null,
+            undoBtn: null,
+            swapBtn: null,
+            bombBtn: null,
+            undoCount: null,
+            swapCount: null,
+            bombCount: null
+        };
+
         // Throttle state for rendering during drag
         this.lastRenderTime = 0;
         this.renderThrottleMs = 16; // ~60fps max
@@ -444,6 +466,7 @@ class BlockBloom {
     }
 
     init() {
+        this.cacheDOMElements();
         this.loadSettings();
         this.loadBestScore();
         this.loadStats();
@@ -456,6 +479,27 @@ class BlockBloom {
         if (!this.tutorialDone) {
             setTimeout(() => this.startTutorial(), 500);
         }
+    }
+
+    cacheDOMElements() {
+        this.dom.board = document.getElementById('board');
+        this.dom.piecesTray = document.getElementById('pieces-tray');
+        this.dom.particles = document.getElementById('particles');
+        this.dom.score = document.getElementById('score');
+        this.dom.bestScore = document.getElementById('best-score');
+        this.dom.comboValue = document.getElementById('combo-value');
+        this.dom.comboBar = document.getElementById('combo-bar');
+        this.dom.comboMeter = document.getElementById('combo-meter');
+        this.dom.flowValue = document.getElementById('flow-value');
+        this.dom.flowBar = document.getElementById('flow-bar');
+        this.dom.flowMeter = document.getElementById('flow-meter');
+        this.dom.comboPopup = document.getElementById('combo-popup');
+        this.dom.undoBtn = document.getElementById('undo-btn');
+        this.dom.swapBtn = document.getElementById('swap-btn');
+        this.dom.bombBtn = document.getElementById('bomb-btn');
+        this.dom.undoCount = document.getElementById('undo-count');
+        this.dom.swapCount = document.getElementById('swap-count');
+        this.dom.bombCount = document.getElementById('bomb-count');
     }
 
     // ==================== IDLE ANIMATIONS ====================
@@ -498,7 +542,7 @@ class BlockBloom {
     }
 
     renderGrid() {
-        const board = document.getElementById('board');
+        const board = this.dom.board;
         if (!board) return;
 
         board.innerHTML = '';
@@ -588,7 +632,7 @@ class BlockBloom {
     }
 
     renderPieces() {
-        const tray = document.getElementById('pieces-tray');
+        const tray = this.dom.piecesTray;
         if (!tray) return;
 
         tray.innerHTML = '';
@@ -778,7 +822,7 @@ class BlockBloom {
     }
 
     animatePlacedCells(cells) {
-        const board = document.getElementById('board');
+        const board = this.dom.board;
         if (!board) return;
 
         cells.forEach((cell, i) => {
@@ -818,7 +862,7 @@ class BlockBloom {
 
     // ==================== FLOATING SCORE POPUP ====================
     showFloatingScore(points, cell) {
-        const board = document.getElementById('board');
+        const board = this.dom.board;
         if (!board || !cell) return;
 
         const rect = board.getBoundingClientRect();
@@ -910,7 +954,7 @@ class BlockBloom {
             }
         }
 
-        const board = document.getElementById('board');
+        const board = this.dom.board;
         if (board) {
             board.classList.add('line-clearing');
             setTimeout(() => board.classList.remove('line-clearing'), 500);
@@ -953,7 +997,7 @@ class BlockBloom {
     }
 
     createLineFlash(rows, cols) {
-        const board = document.getElementById('board');
+        const board = this.dom.board;
         if (!board) return;
 
         const rect = board.getBoundingClientRect();
@@ -995,7 +1039,7 @@ class BlockBloom {
 
     // ==================== SCREEN EFFECTS ====================
     shakeScreen(intensity = 1) {
-        const board = document.getElementById('board');
+        const board = this.dom.board;
         if (board) {
             board.style.setProperty('--shake-intensity', intensity);
             board.classList.add('shake');
@@ -1054,7 +1098,7 @@ class BlockBloom {
     }
 
     spawnConfetti(x, y) {
-        const container = document.getElementById('particles');
+        const container = this.dom.particles;
         if (!container) return;
 
         for (let i = 0; i < 3; i++) {
@@ -1082,7 +1126,7 @@ class BlockBloom {
 
     // ==================== PARTICLES ====================
     spawnParticles(element, count) {
-        const container = document.getElementById('particles');
+        const container = this.dom.particles;
         if (!container) return;
 
         const rect = element.getBoundingClientRect();
@@ -1136,7 +1180,7 @@ class BlockBloom {
             cancelAnimationFrame(this.scoreAnimationId);
         }
 
-        const scoreEl = document.getElementById('score');
+        const scoreEl = this.dom.score;
         if (!scoreEl) return;
 
         const duration = 300;
@@ -1174,25 +1218,20 @@ class BlockBloom {
     }
 
     updateScoreDisplay() {
-        const bestEl = document.getElementById('best-score');
-        if (bestEl) bestEl.textContent = this.bestScore.toLocaleString();
+        if (this.dom.bestScore) this.dom.bestScore.textContent = this.bestScore.toLocaleString();
 
-        const comboValue = document.getElementById('combo-value');
-        const comboBar = document.getElementById('combo-bar');
-        const comboMeter = document.getElementById('combo-meter');
-
-        if (comboValue) comboValue.textContent = `x${this.comboMultiplier.toFixed(1)}`;
-        if (comboBar) {
+        if (this.dom.comboValue) this.dom.comboValue.textContent = `x${this.comboMultiplier.toFixed(1)}`;
+        if (this.dom.comboBar) {
             const comboPercent = Math.min(100, (this.comboMultiplier - 1) / 2 * 100);
-            comboBar.style.width = `${comboPercent}%`;
+            this.dom.comboBar.style.width = `${comboPercent}%`;
         }
-        if (comboMeter) {
-            comboMeter.classList.toggle('active', this.comboMultiplier > 1);
+        if (this.dom.comboMeter) {
+            this.dom.comboMeter.classList.toggle('active', this.comboMultiplier > 1);
         }
     }
 
     showComboPopup(lines) {
-        const popup = document.getElementById('combo-popup');
+        const popup = this.dom.comboPopup;
         if (!popup) return;
 
         let text = '';
@@ -1234,13 +1273,9 @@ class BlockBloom {
     }
 
     updateFlowDisplay() {
-        const flowValue = document.getElementById('flow-value');
-        const flowBar = document.getElementById('flow-bar');
-        const flowMeter = document.getElementById('flow-meter');
-
-        if (flowValue) flowValue.textContent = `${Math.round(this.flowMeter)}%`;
-        if (flowBar) {
-            flowBar.style.width = `${this.flowMeter}%`;
+        if (this.dom.flowValue) this.dom.flowValue.textContent = `${Math.round(this.flowMeter)}%`;
+        if (this.dom.flowBar) {
+            this.dom.flowBar.style.width = `${this.flowMeter}%`;
 
             let level = 0;
             if (this.flowMeter >= 100) level = 4;
@@ -1248,10 +1283,10 @@ class BlockBloom {
             else if (this.flowMeter >= 50) level = 2;
             else if (this.flowMeter >= 25) level = 1;
 
-            flowBar.setAttribute('data-level', level);
+            this.dom.flowBar.setAttribute('data-level', level);
         }
-        if (flowMeter) {
-            flowMeter.classList.toggle('active', this.flowMeter > 0);
+        if (this.dom.flowMeter) {
+            this.dom.flowMeter.classList.toggle('active', this.flowMeter > 0);
         }
     }
 
@@ -1316,8 +1351,7 @@ class BlockBloom {
         this.startFlowDecay();
 
         // Update score display
-        const scoreEl = document.getElementById('score');
-        if (scoreEl) scoreEl.textContent = '0';
+        if (this.dom.score) this.dom.score.textContent = '0';
 
         this.hideModal('menu-modal');
         this.hideModal('gameover-modal');
@@ -1419,8 +1453,7 @@ class BlockBloom {
         this.haptic('click');
 
         // Update score display immediately
-        const scoreEl = document.getElementById('score');
-        if (scoreEl) scoreEl.textContent = this.score.toLocaleString();
+        if (this.dom.score) this.dom.score.textContent = this.score.toLocaleString();
 
         return true;
     }
@@ -1444,7 +1477,7 @@ class BlockBloom {
 
         this.sound.playClick();
         this.isBombMode = true;
-        document.getElementById('board')?.classList.add('bomb-mode');
+        this.dom.board?.classList.add('bomb-mode');
         return true;
     }
 
@@ -1467,7 +1500,7 @@ class BlockBloom {
             }
         }
 
-        const board = document.getElementById('board');
+        const board = this.dom.board;
         if (board) {
             clearedCells.forEach(cell => {
                 const index = cell.y * this.gridSize + cell.x;
@@ -1479,7 +1512,7 @@ class BlockBloom {
 
         this.bombsRemaining--;
         this.isBombMode = false;
-        document.getElementById('board')?.classList.remove('bomb-mode');
+        this.dom.board?.classList.remove('bomb-mode');
 
         this.render();
         this.updatePowerUpButtons();
@@ -1488,29 +1521,22 @@ class BlockBloom {
     }
 
     updatePowerUpButtons() {
-        const undoCount = document.getElementById('undo-count');
-        const swapCount = document.getElementById('swap-count');
-        const bombCount = document.getElementById('bomb-count');
-        const undoBtn = document.getElementById('undo-btn');
-        const swapBtn = document.getElementById('swap-btn');
-        const bombBtn = document.getElementById('bomb-btn');
-
-        if (undoCount) {
-            undoCount.textContent = this.undosRemaining;
-            undoCount.classList.toggle('zero', this.undosRemaining === 0);
+        if (this.dom.undoCount) {
+            this.dom.undoCount.textContent = this.undosRemaining;
+            this.dom.undoCount.classList.toggle('zero', this.undosRemaining === 0);
         }
-        if (swapCount) {
-            swapCount.textContent = this.swapsRemaining;
-            swapCount.classList.toggle('zero', this.swapsRemaining === 0);
+        if (this.dom.swapCount) {
+            this.dom.swapCount.textContent = this.swapsRemaining;
+            this.dom.swapCount.classList.toggle('zero', this.swapsRemaining === 0);
         }
-        if (bombCount) {
-            bombCount.textContent = this.bombsRemaining;
-            bombCount.classList.toggle('zero', this.bombsRemaining === 0);
+        if (this.dom.bombCount) {
+            this.dom.bombCount.textContent = this.bombsRemaining;
+            this.dom.bombCount.classList.toggle('zero', this.bombsRemaining === 0);
         }
 
-        if (undoBtn) undoBtn.disabled = this.undosRemaining <= 0 || this.moveHistory.length === 0;
-        if (swapBtn) swapBtn.disabled = this.swapsRemaining <= 0;
-        if (bombBtn) bombBtn.disabled = this.bombsRemaining <= 0;
+        if (this.dom.undoBtn) this.dom.undoBtn.disabled = this.undosRemaining <= 0 || this.moveHistory.length === 0;
+        if (this.dom.swapBtn) this.dom.swapBtn.disabled = this.swapsRemaining <= 0;
+        if (this.dom.bombBtn) this.dom.bombBtn.disabled = this.bombsRemaining <= 0;
     }
 
     // ==================== HAPTICS ====================
@@ -1551,7 +1577,7 @@ class BlockBloom {
         document.addEventListener('mousemove', this.boundMoveDrag);
         document.addEventListener('mouseup', this.boundEndDrag);
 
-        document.getElementById('board')?.addEventListener('click', (e) => {
+        this.dom.board?.addEventListener('click', (e) => {
             if (this.isBombMode) {
                 const cell = e.target.closest('.cell');
                 if (cell) {
@@ -1560,9 +1586,9 @@ class BlockBloom {
             }
         });
 
-        document.getElementById('undo-btn')?.addEventListener('click', () => this.undo());
-        document.getElementById('swap-btn')?.addEventListener('click', () => this.swapPieces());
-        document.getElementById('bomb-btn')?.addEventListener('click', () => this.activateBomb());
+        this.dom.undoBtn?.addEventListener('click', () => this.undo());
+        this.dom.swapBtn?.addEventListener('click', () => this.swapPieces());
+        this.dom.bombBtn?.addEventListener('click', () => this.activateBomb());
 
         document.getElementById('menu-btn')?.addEventListener('click', () => {
             this.sound.playClick();
@@ -1771,7 +1797,7 @@ class BlockBloom {
     }
 
     createTrailParticle(x, y) {
-        const container = document.getElementById('particles');
+        const container = this.dom.particles;
         if (!container) return;
 
         const trail = document.createElement('div');
@@ -1799,7 +1825,7 @@ class BlockBloom {
         e.preventDefault();
         this.updateFloatingPosition(e);
 
-        const board = document.getElementById('board');
+        const board = this.dom.board;
         if (!board) return;
 
         const rect = board.getBoundingClientRect();
