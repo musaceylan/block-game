@@ -893,62 +893,85 @@ class BlockBloom {
 
     clearLinesAnimated(rows, cols) {
         const cellsToClear = new Set();
-        const allCells = [];
 
-        // Collect row cells with fast wave delay (15ms per cell)
+        // Collect all cells to clear
         for (let y of rows) {
             for (let x = 0; x < this.gridSize; x++) {
-                const key = `${x},${y}`;
-                if (!cellsToClear.has(key)) {
-                    cellsToClear.add(key);
-                    allCells.push({ x, y, waveDelay: x * 15 });
-                }
+                cellsToClear.add(`${x},${y}`);
             }
         }
-
-        // Collect column cells with fast wave delay
         for (let x of cols) {
             for (let y = 0; y < this.gridSize; y++) {
-                const key = `${x},${y}`;
-                if (!cellsToClear.has(key)) {
-                    cellsToClear.add(key);
-                    allCells.push({ x, y, waveDelay: y * 15 });
-                }
+                cellsToClear.add(`${x},${y}`);
             }
         }
 
         const board = document.getElementById('board');
+        if (!board) return;
 
-        if (board) {
-            board.classList.add('line-clearing');
-            setTimeout(() => board.classList.remove('line-clearing'), 250);
+        board.classList.add('line-clearing');
+        setTimeout(() => board.classList.remove('line-clearing'), 150);
 
-            const cells = board.querySelectorAll('.cell');
+        const cells = board.querySelectorAll('.cell');
 
-            // Flash and clear in one smooth wave
-            this.createLineFlash(rows, cols);
+        // Quick flash
+        this.createLineFlash(rows, cols);
 
-            allCells.forEach(({ x, y, waveDelay }) => {
-                const index = y * this.gridSize + x;
-                if (cells[index]) {
-                    setTimeout(() => {
-                        cells[index].classList.add('clearing');
-                        this.spawnParticles(cells[index], 4);
-                        this.createExplosionRings(cells[index]);
-                    }, waveDelay);
-                }
+        // All cells clear simultaneously - no stagger for instant feel
+        cellsToClear.forEach(coord => {
+            const [x, y] = coord.split(',').map(Number);
+            const index = y * this.gridSize + x;
+            if (cells[index]) {
+                cells[index].classList.add('clearing');
+            }
+        });
+
+        // Spawn particles once per line, not per cell
+        if (rows.length > 0 || cols.length > 0) {
+            const rect = board.getBoundingClientRect();
+            const cellSize = rect.width / this.gridSize;
+            rows.forEach(y => {
+                this.spawnLineParticles(rect.left + rect.width / 2, rect.top + 8 + y * cellSize + cellSize / 2, true);
+            });
+            cols.forEach(x => {
+                this.spawnLineParticles(rect.left + 8 + x * cellSize + cellSize / 2, rect.top + rect.height / 2, false);
             });
         }
 
-        // Cleanup after animation
-        const maxDelay = allCells.length > 0 ? Math.max(...allCells.map(c => c.waveDelay)) : 0;
+        // Cleanup quickly
         setTimeout(() => {
             cellsToClear.forEach(coord => {
                 const [x, y] = coord.split(',').map(Number);
                 this.grid[y][x] = { filled: false, colorClass: null };
             });
             this.renderGrid();
-        }, maxDelay + 250);
+        }, 180);
+    }
+
+    spawnLineParticles(centerX, centerY, isHorizontal) {
+        const container = document.getElementById('particles');
+        if (!container) return;
+
+        const count = 6;
+        for (let i = 0; i < count; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+
+            const spread = isHorizontal ? 80 : 40;
+            const perpSpread = isHorizontal ? 20 : 80;
+
+            const offsetX = (Math.random() - 0.5) * spread;
+            const offsetY = (Math.random() - 0.5) * perpSpread;
+
+            particle.style.left = `${centerX + offsetX}px`;
+            particle.style.top = `${centerY + offsetY}px`;
+            particle.style.setProperty('--dx', `${(Math.random() - 0.5) * 60}px`);
+            particle.style.setProperty('--dy', `${(Math.random() - 0.5) * 60}px`);
+            particle.style.background = `hsl(${Math.random() * 60 + 180}, 80%, 60%)`;
+
+            container.appendChild(particle);
+            setTimeout(() => particle.remove(), 400);
+        }
     }
 
     createLineFlash(rows, cols) {
@@ -961,48 +984,30 @@ class BlockBloom {
 
         rows.forEach(y => {
             const flash = document.createElement('div');
-            flash.className = 'line-flash horizontal';
+            flash.className = 'line-flash';
             flash.style.left = `${rect.left + padding}px`;
             flash.style.top = `${rect.top + padding + y * cellSize}px`;
             flash.style.width = `${rect.width - padding * 2}px`;
             flash.style.height = `${cellSize}px`;
             document.body.appendChild(flash);
-            setTimeout(() => flash.remove(), 300);
+            setTimeout(() => flash.remove(), 150);
         });
 
         cols.forEach(x => {
             const flash = document.createElement('div');
-            flash.className = 'line-flash vertical';
+            flash.className = 'line-flash';
             flash.style.left = `${rect.left + padding + x * cellSize}px`;
             flash.style.top = `${rect.top + padding}px`;
             flash.style.width = `${cellSize}px`;
             flash.style.height = `${rect.height - padding * 2}px`;
             document.body.appendChild(flash);
-            setTimeout(() => flash.remove(), 300);
+            setTimeout(() => flash.remove(), 150);
         });
     }
 
-    createExplosionRing(element) {
-        this.createExplosionRings(element);
-    }
-
-    createExplosionRings(element) {
-        const rect = element.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-
-        // Create 2 quick rings
-        const ringClasses = ['explosion-ring', 'explosion-ring ring-2'];
-
-        ringClasses.forEach((className, index) => {
-            const ring = document.createElement('div');
-            ring.className = className;
-            ring.style.left = `${centerX}px`;
-            ring.style.top = `${centerY}px`;
-            document.body.appendChild(ring);
-            setTimeout(() => ring.remove(), 400);
-        });
-    }
+    // Keep for backwards compatibility but make it a no-op
+    createExplosionRing(element) {}
+    createExplosionRings(element) {}
 
     // ==================== SCREEN EFFECTS ====================
     shakeScreen(intensity = 1) {
