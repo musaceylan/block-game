@@ -1270,7 +1270,7 @@ class BlockBloom {
                 this.flowMeter = Math.max(0, this.flowMeter - 1);
                 this.updateFlowDisplay();
             }
-        }, 1000);
+        }, 2000);
     }
 
     stopFlowDecay() {
