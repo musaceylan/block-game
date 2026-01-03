@@ -1942,6 +1942,14 @@ class BlockBloom {
 
         try {
             const data = JSON.parse(save);
+
+            // Validate schema before applying
+            if (!this.validateSaveData(data)) {
+                console.warn('Invalid save data schema, ignoring save');
+                localStorage.removeItem('blockbloom_save');
+                return false;
+            }
+
             this.grid = data.grid;
             this.pieces = data.pieces;
             this.score = data.score;
@@ -1964,6 +1972,48 @@ class BlockBloom {
         } catch (e) {
             return false;
         }
+    }
+
+    validateSaveData(data) {
+        // Check that data is an object
+        if (!data || typeof data !== 'object') return false;
+
+        // Validate grid: must be 10x10 2D array with valid cell values
+        if (!Array.isArray(data.grid) || data.grid.length !== 10) return false;
+        for (let y = 0; y < 10; y++) {
+            if (!Array.isArray(data.grid[y]) || data.grid[y].length !== 10) return false;
+            for (let x = 0; x < 10; x++) {
+                const cell = data.grid[y][x];
+                // Cell must be 0 or a valid color class string
+                if (cell !== 0 && typeof cell !== 'string') return false;
+            }
+        }
+
+        // Validate pieces: must be an array
+        if (!Array.isArray(data.pieces)) return false;
+        // Each piece must have required properties
+        for (const piece of data.pieces) {
+            if (!piece || typeof piece !== 'object') return false;
+            if (!Array.isArray(piece.shape)) return false;
+            if (typeof piece.colorClass !== 'string') return false;
+        }
+
+        // Validate required numeric properties
+        if (typeof data.score !== 'number' || data.score < 0) return false;
+        if (typeof data.combo !== 'number' || data.combo < 0) return false;
+        if (typeof data.comboMultiplier !== 'number' || data.comboMultiplier < 1) return false;
+        if (typeof data.flowMeter !== 'number' || data.flowMeter < 0 || data.flowMeter > 100) return false;
+        if (typeof data.undosRemaining !== 'number' || data.undosRemaining < 0) return false;
+        if (typeof data.swapsRemaining !== 'number' || data.swapsRemaining < 0) return false;
+        if (typeof data.bombsRemaining !== 'number' || data.bombsRemaining < 0) return false;
+
+        // Optional numeric properties (validated if present)
+        if (data.linesCleared !== undefined && (typeof data.linesCleared !== 'number' || data.linesCleared < 0)) return false;
+        if (data.piecesPlaced !== undefined && (typeof data.piecesPlaced !== 'number' || data.piecesPlaced < 0)) return false;
+        if (data.totalLinesCleared !== undefined && (typeof data.totalLinesCleared !== 'number' || data.totalLinesCleared < 0)) return false;
+        if (data.lastMilestone !== undefined && (typeof data.lastMilestone !== 'number' || data.lastMilestone < 0)) return false;
+
+        return true;
     }
 
     saveBestScore() {
