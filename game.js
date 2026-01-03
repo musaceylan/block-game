@@ -39,6 +39,46 @@ const PIECES = {
 const BLOCK_COLORS = ['block-1', 'block-2', 'block-3', 'block-4', 'block-5', 'block-6', 'block-7', 'block-8'];
 const PARTICLE_COLORS = ['#ff4d6d', '#4d79ff', '#00d68f', '#ffb800', '#a855f7', '#ff6b35', '#00d4ff', '#f472b6'];
 
+// ==================== GAME CONSTANTS ====================
+const GRID_SIZE = 10;
+const PIECE_SLOT_COUNT = 3;
+
+// Combo system
+const MAX_COMBO_MULTIPLIER = 3.0;
+const BASE_COMBO_MULTIPLIER = 1.0;
+const COMBO_MULTIPLIER_INCREMENT = 0.2;
+
+// Scoring
+const LINE_BASE_SCORE = 10;
+const MULTI_LINE_BONUS = 25;
+const FLOW_METER_PER_LINE = 15;
+const FLOW_METER_MAX = 100;
+const FLOW_DECAY_INTERVAL_MS = 500;
+const FLOW_DECAY_AMOUNT = 1;
+
+// Screen effects
+const SCREEN_SHAKE_LINE_THRESHOLD = 2;
+const HIT_PAUSE_BASE_MS = 50;
+const HIT_PAUSE_PER_LINE_MS = 20;
+
+// Animation timing
+const CELL_CLEAR_DELAY_MS = 25;
+const LINE_CLEAR_ANIMATION_MS = 700;
+const SCORE_ANIMATION_DURATION_MS = 300;
+
+// Power-ups
+const MAX_UNDO_HISTORY = 3;
+const INITIAL_UNDOS = 3;
+const INITIAL_SWAPS = 1;
+const INITIAL_BOMBS = 0;
+
+// Tutorial
+const TUTORIAL_STEP_COUNT = 3;
+
+// Milestones
+const LINE_MILESTONES = [10, 25, 50, 100, 150, 200];
+const COMBO_MILESTONES = [5, 10];
+
 // ==================== SOUND ENGINE (Web Audio API) ====================
 class SoundEngine {
     constructor() {
@@ -307,14 +347,14 @@ class SoundEngine {
 // ==================== GAME CLASS ====================
 class BlockBloom {
     constructor() {
-        this.gridSize = 10;
+        this.gridSize = GRID_SIZE;
         this.grid = [];
-        this.pieces = [null, null, null];
+        this.pieces = Array(PIECE_SLOT_COUNT).fill(null);
         this.score = 0;
         this.displayScore = 0;
         this.bestScore = 0;
         this.combo = 0;
-        this.comboMultiplier = 1.0;
+        this.comboMultiplier = BASE_COMBO_MULTIPLIER;
         this.maxCombo = 0;
         this.flowMeter = 0;
         this.flowDecayTimer = null;
@@ -322,10 +362,10 @@ class BlockBloom {
         this.isGameOver = false;
         this.gameStarted = false;
         this.moveHistory = [];
-        this.maxUndo = 3;
-        this.undosRemaining = 3;
-        this.swapsRemaining = 1;
-        this.bombsRemaining = 0;
+        this.maxUndo = MAX_UNDO_HISTORY;
+        this.undosRemaining = INITIAL_UNDOS;
+        this.swapsRemaining = INITIAL_SWAPS;
+        this.bombsRemaining = INITIAL_BOMBS;
         this.isBombMode = false;
         this.linesCleared = 0;
         this.piecesPlaced = 0;
@@ -443,7 +483,7 @@ class BlockBloom {
         const weights = pieceKeys.map(k => PIECES[k].weight);
         const totalWeight = weights.reduce((a, b) => a + b, 0);
 
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < PIECE_SLOT_COUNT; i++) {
             if (this.pieces[i] === null) {
                 let random = Math.random() * totalWeight;
                 let selectedKey = pieceKeys[0];
@@ -483,7 +523,7 @@ class BlockBloom {
 
         tray.innerHTML = '';
 
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < PIECE_SLOT_COUNT; i++) {
             const slot = document.createElement('div');
             slot.className = 'piece-slot';
             slot.dataset.index = i;
@@ -611,9 +651,9 @@ class BlockBloom {
 
         if (cleared > 0) {
             this.combo++;
-            this.comboMultiplier = Math.min(3.0, 1.0 + (this.combo - 1) * 0.2);
+            this.comboMultiplier = Math.min(MAX_COMBO_MULTIPLIER, BASE_COMBO_MULTIPLIER + (this.combo - 1) * COMBO_MULTIPLIER_INCREMENT);
             if (this.combo > this.maxCombo) this.maxCombo = this.combo;
-            this.addFlowMeter(cleared * 15);
+            this.addFlowMeter(cleared * FLOW_METER_PER_LINE);
             this.showComboPopup(cleared);
 
             // Play sounds
@@ -623,7 +663,7 @@ class BlockBloom {
             }
 
             // Screen shake for big clears
-            if (cleared >= 2) {
+            if (cleared >= SCREEN_SHAKE_LINE_THRESHOLD) {
                 this.shakeScreen(cleared);
             }
 
@@ -634,7 +674,7 @@ class BlockBloom {
             this.checkMilestones();
         } else {
             this.combo = 0;
-            this.comboMultiplier = 1.0;
+            this.comboMultiplier = BASE_COMBO_MULTIPLIER;
         }
 
         // Add score with animation
@@ -662,8 +702,8 @@ class BlockBloom {
     }
 
     calculateLineScore(lineCount) {
-        let lineScore = lineCount * 10;
-        if (lineCount >= 2) lineScore += (lineCount - 1) * 25;
+        let lineScore = lineCount * LINE_BASE_SCORE;
+        if (lineCount >= SCREEN_SHAKE_LINE_THRESHOLD) lineScore += (lineCount - 1) * MULTI_LINE_BONUS;
         return Math.floor(lineScore * this.comboMultiplier);
     }
 
@@ -759,7 +799,7 @@ class BlockBloom {
             this.totalLinesCleared += totalLines;
 
             // HIT PAUSE - freeze before animation
-            this.hitPause(50 + totalLines * 20);
+            this.hitPause(HIT_PAUSE_BASE_MS + totalLines * HIT_PAUSE_PER_LINE_MS);
 
             this.clearLinesAnimated(rowsToClear, colsToClear);
         }
@@ -785,7 +825,7 @@ class BlockBloom {
                 const key = `${x},${y}`;
                 if (!cellsToClear.has(key)) {
                     cellsToClear.add(key);
-                    cellsWithDelay.push({ x, y, delay: x * 25 });
+                    cellsWithDelay.push({ x, y, delay: x * CELL_CLEAR_DELAY_MS });
                 }
             }
         }
@@ -795,7 +835,7 @@ class BlockBloom {
                 const key = `${x},${y}`;
                 if (!cellsToClear.has(key)) {
                     cellsToClear.add(key);
-                    cellsWithDelay.push({ x, y, delay: y * 25 });
+                    cellsWithDelay.push({ x, y, delay: y * CELL_CLEAR_DELAY_MS });
                 }
             }
         }
@@ -839,7 +879,7 @@ class BlockBloom {
                 this.grid[y][x] = { filled: false, colorClass: null };
             });
             this.renderGrid();
-        }, 700);
+        }, LINE_CLEAR_ANIMATION_MS);
     }
 
     createLineFlash(rows, cols) {
@@ -904,9 +944,7 @@ class BlockBloom {
 
     // ==================== MILESTONES ====================
     checkMilestones() {
-        const milestones = [10, 25, 50, 100, 150, 200];
-
-        for (const milestone of milestones) {
+        for (const milestone of LINE_MILESTONES) {
             if (this.totalLinesCleared >= milestone && this.lastMilestone < milestone) {
                 this.lastMilestone = milestone;
                 this.showMilestoneCelebration(milestone);
@@ -916,7 +954,7 @@ class BlockBloom {
         }
 
         // Check for combo milestones
-        if (this.combo === 5 || this.combo === 10) {
+        if (COMBO_MILESTONES.includes(this.combo)) {
             this.showMilestoneCelebration(`${this.combo}x COMBO!`);
             this.sound.playMilestone();
         }
@@ -1029,7 +1067,7 @@ class BlockBloom {
         const scoreEl = document.getElementById('score');
         if (!scoreEl) return;
 
-        const duration = 300;
+        const duration = SCORE_ANIMATION_DURATION_MS;
         const startTime = performance.now();
         const diff = to - from;
 
@@ -1101,7 +1139,7 @@ class BlockBloom {
 
     // ==================== FLOW METER ====================
     addFlowMeter(amount) {
-        this.flowMeter = Math.min(100, this.flowMeter + amount);
+        this.flowMeter = Math.min(FLOW_METER_MAX, this.flowMeter + amount);
         this.updateFlowDisplay();
     }
 
@@ -1110,10 +1148,10 @@ class BlockBloom {
 
         this.flowDecayTimer = setInterval(() => {
             if (this.flowMeter > 0 && !this.isGameOver && this.gameStarted) {
-                this.flowMeter = Math.max(0, this.flowMeter - 1);
+                this.flowMeter = Math.max(0, this.flowMeter - FLOW_DECAY_AMOUNT);
                 this.updateFlowDisplay();
             }
-        }, 500);
+        }, FLOW_DECAY_INTERVAL_MS);
     }
 
     updateFlowDisplay() {
@@ -1167,18 +1205,18 @@ class BlockBloom {
         this.score = 0;
         this.displayScore = 0;
         this.combo = 0;
-        this.comboMultiplier = 1.0;
+        this.comboMultiplier = BASE_COMBO_MULTIPLIER;
         this.maxCombo = 0;
         this.flowMeter = 0;
         this.isGameOver = false;
         this.gameStarted = true;
         this.isNewBest = false;
         this.previousBest = this.bestScore;
-        this.pieces = [null, null, null];
+        this.pieces = Array(PIECE_SLOT_COUNT).fill(null);
         this.moveHistory = [];
-        this.undosRemaining = 3;
-        this.swapsRemaining = 1;
-        this.bombsRemaining = 0;
+        this.undosRemaining = INITIAL_UNDOS;
+        this.swapsRemaining = INITIAL_SWAPS;
+        this.bombsRemaining = INITIAL_BOMBS;
         this.linesCleared = 0;
         this.piecesPlaced = 0;
         this.totalLinesCleared = 0;
@@ -1272,7 +1310,7 @@ class BlockBloom {
 
         this.sound.playClick();
         this.saveState();
-        this.pieces = [null, null, null];
+        this.pieces = Array(PIECE_SLOT_COUNT).fill(null);
         this.generatePieces();
 
         this.swapsRemaining--;
@@ -1815,7 +1853,7 @@ class BlockBloom {
     nextTutorialStep() {
         this.tutorialStep++;
 
-        if (this.tutorialStep >= 3) {
+        if (this.tutorialStep >= TUTORIAL_STEP_COUNT) {
             this.hideModal('tutorial-overlay');
             this.tutorialDone = true;
             localStorage.setItem('blockbloom_tutorial_done', 'true');
